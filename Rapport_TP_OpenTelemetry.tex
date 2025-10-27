@@ -1,0 +1,26 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\geometry{margin=2.5cm}
+\title{TP 1 -- Mise en \OE uvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry}
+\author{Oumar Marame}
+\date{26 octobre 2025}
+
+\begin{document}
+\maketitle
+\begin{center}
+\textbf{MGL870 -- Observabilité des systèmes logiciels} \\
+\textit{École de Technologie Supérieure (ÉTS)} \\
+Professeur du cours MGL870
+\end{center}
+
+\begin{abstract}
+Ce rapport présente la mise en œuvre complète d'un pipeline d'observabilité pour une application microservices e-commerce Python/Flask. Le projet intègre OpenTelemetry pour l'instrumentation, avec collecte de traces (Jaeger), métriques (Prometheus) et logs (Loki), le tout visualisé dans Grafana. L'architecture déployée via Docker Compose comprend 4 microservices instrumentés, un OpenTelemetry Collector centralisé, et un système d'alerting Prometheus/Alertmanager. Le rapport documente également l'implémentation de spans personnalisés, de métriques métier, et une évaluation de maturité atteignant le Niveau 3 (Proactive) du modèle d'observabilité.
+\end{abstract}
+
+\tableofcontents
+\newpage

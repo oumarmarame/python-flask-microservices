@@ -1,5 +1,18 @@
 #!/bin/bash
-# Script pour générer des traces et vérifier qu'elles apparaissent dans Jaeger
+#
+# Script de test pour valider le traçage distribué OpenTelemetry.
+# Génère 100 requêtes HTTP vers le frontend et vérifie la collecte des traces dans Jaeger.
+#
+# @author: Oumar Marame Ndione
+# Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+# Code Permanent: Private
+#
+# Cours: MGL870 - Automne 2025
+# Enseignant: Fabio Petrillo
+# Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+# École de technologie supérieure (ÉTS)
+# @version: 2025-10-26
+#
 
 echo "============================================"
 echo "  TEST TRACES OPENTELEMETRY"

@@ -1,9 +1,43 @@
 # TP OpenTelemetry - Observabilité Microservices
 
 **Projet académique** : Mise en œuvre d'un pipeline complet d'observabilité  
-**Étudiant** : Oumar Marame  
+**Auteur** : Oumar Marame  
 **Cours** : MGL870 - Observabilité des systèmes logiciels  
 **Établissement** : E.T.S. Montréal
+
+---
+
+## 🏗️ Architecture globale
+
+Voici l'architecture complète que j'ai mise en place avec **12 conteneurs Docker orchestrés** :
+
+![Architecture Globale](img/ArchitectureGlobale.png)
+
+**Mon système en un coup d'œil :**
+- 🐳 **12 conteneurs Docker** orchestrés avec Docker Compose centralisé
+- 🐍 **4 services Python/Flask** instrumentés avec OpenTelemetry
+- 📊 **5 outils d'observabilité** (OTel Collector, Jaeger, Prometheus, Loki, Grafana)
+- 🗄️ **3 bases MySQL** gérées via SQLAlchemy ORM
+
+### Vues architecturales complémentaires
+
+**Architecture 3-Tiers avec observabilité transversale :**
+
+![Architecture 3-Tiers](img/Architecture3Tiersv0.png)
+
+Mon système suit le pattern 3-Tiers : Présentation (Flask UI) → Logique Métier (3 APIs REST) → Données (3 MySQL), avec une couche d'observabilité instrumentée sur tous les tiers.
+
+**Orchestration Docker Compose :**
+
+![Architecture Docker Compose](img/ArchitectureDockerComposev0.png)
+
+Organisation des 12 conteneurs dans un réseau Docker unique `app-network`, permettant la communication automatique entre services.
+
+**Pipeline OpenTelemetry détaillé :**
+
+![Pipeline OpenTelemetry](img/PipelineOpenTelemetryv0.png)
+
+Flux complet des données télémétriques : Émission (SDK) → Collecte (Receivers) → Traitement (Processors) → Distribution (Exporters) → Visualisation (Backends).
 
 ---
 
@@ -33,6 +67,28 @@ Le projet original provient de [CloudAcademy](https://github.com/cloudacademy/py
 - [x] Créer des dashboards Grafana pour le monitoring
 - [x] Tester le système avec des scénarios de panne réalistes
 - [x] Configurer des alertes Prometheus opérationnelles
+
+### 🚀 Améliorations avancées (Niveau 3 - Proactive)
+
+Ce projet va au-delà des exigences de base en implémentant des concepts avancés issus des cours MGL870 :
+
+- [x] **Spans personnalisés enrichis** (Cours 04) : Attributs métier dans les traces Jaeger
+  - `checkout.status`, `order.total_price`, `user.id`
+  - Visible dans Jaeger → Service `frontend` → Span `checkout_validation`
+  
+- [x] **Métriques métier** (Cours 03) : KPIs business en temps réel
+  - `orders.created` : Nouvelles commandes
+  - `cart.items.added` : Items ajoutés aux paniers
+  - `orders.checkout.completed` : Checkout complétés
+  - Disponible dans Prometheus : `{job="otel-collector"}`
+  
+- [x] **Évaluation maturité observabilité** (Cours 02) : Auto-évaluation niveau 3 (Proactive)
+  - Rapport Section 8.7 : Analyse détaillée du modèle de maturité
+  - Rapport Section 8.8 : Documentation des améliorations avancées
+
+**📊 Tests automatisés** : Script `test_ameliorations.sh` valide les 8 critères (100% passés)
+
+**📚 Documentation complète** : Voir `AMELIORATIONS_COURS.md` pour détails techniques
 
 ---
 
@@ -278,12 +334,6 @@ Voici les technologies que j'ai intégrées dans mon système :
 | Prometheus | 3.7.2 | Time-Series Database pour métriques | 9090 (UI + API) |
 | Loki | 3.5.7 | Agrégateur de logs | 3100 (API) |
 | Grafana | 12.2.1 | Visualisation unifiée | 3000 (UI) |
-
-### Architecture visuelle que j'ai conçue
-
-![Architecture Globale](img/ArchitectureGlobale.png)
-
-Le schéma ci-dessus montre comment j'ai organisé mes services : les 4 applications envoient leurs données télémétriques vers le collecteur OpenTelemetry, qui les redistribue ensuite vers Jaeger (traces), Prometheus (métriques) et Loki (logs). Grafana centralise la visualisation.
 
 ---
 
@@ -542,3 +592,8 @@ Ce projet est un TP académique (MGL870 - Observabilité des systèmes logiciels
 ---
 
 **Licence** : Projet éducatif - CloudAcademy base template
+
+<!-- # Depuis la racine du projet
+cd ..
+zip -r TP1_OpenTelemetry_OumarMarame.zip python-flask-microservices/ \
+    -x "*.git*" "**/__pycache__/*" "**/*.pyc" "**/node_modules/*" -->

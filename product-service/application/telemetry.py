@@ -1,4 +1,18 @@
-# frontend/application/telemetry.py
+"""
+Instrumentation OpenTelemetry pour le service Product Flask.
+Ce module configure le traçage distribué et les métriques via OpenTelemetry SDK.
+
+@author: Oumar Marame Ndione
+Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+Code Permanent: Private
+
+Cours: MGL870 - Automne 2025
+Enseignant: Fabio Petrillo
+Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+École de technologie supérieure (ÉTS)
+@version: 2025-10-26
+"""
+
 import os
 from flask import Flask
 

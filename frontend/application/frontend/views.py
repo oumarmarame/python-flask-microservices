@@ -9,6 +9,10 @@ from .api.OrderClient import OrderClient
 from flask import render_template, session, redirect, url_for, flash, request, current_app
 
 from flask_login import current_user
+from opentelemetry import trace
+
+# Obtenir un tracer pour créer des spans personnalisés
+tracer = trace.get_tracer(__name__)
 
 
 @login_manager.user_loader
@@ -108,18 +112,36 @@ def product(slug):
 
 @frontend_blueprint.route('/checkout', methods=['GET'])
 def summary():
-    if 'user' not in session:
-        flash('Veuillez vous connecter', 'error')
-        return redirect(url_for('frontend.login'))
+    # Créer un span personnalisé pour tracker la validation du panier
+    with tracer.start_as_current_span("checkout_validation") as span:
+        if 'user' not in session:
+            span.set_attribute("checkout.status", "unauthorized")
+            span.add_event("User not logged in")
+            flash('Veuillez vous connecter', 'error')
+            return redirect(url_for('frontend.login'))
 
-    if 'order' not in session:
-        flash('Aucune commande trouvée', 'error')
-        return redirect(url_for('frontend.home'))
+        if 'order' not in session:
+            span.set_attribute("checkout.status", "no_order")
+            span.add_event("No order found in session")
+            flash('Aucune commande trouvée', 'error')
+            return redirect(url_for('frontend.home'))
 
-    order = OrderClient.get_order()
-    order_data = order.get('result', {}) if order else {}
-    
-    return render_template('checkout/index.html', order=order_data)
+        order = OrderClient.get_order()
+        order_data = order.get('result', {}) if order else {}
+        
+        # Enrichir le span avec des informations métier
+        if order_data:
+            span.set_attribute("checkout.status", "valid")
+            span.set_attribute("order.id", order_data.get('id', 'unknown'))
+            span.set_attribute("order.items_count", len(order_data.get('order_items', [])))
+            
+            # Calculer le total
+            total = sum(item.get('qty', 0) * item.get('product', {}).get('price', 0) 
+                       for item in order_data.get('order_items', []))
+            span.set_attribute("order.total_price", total)
+            span.set_attribute("user.id", session.get('user', {}).get('id', 'unknown'))
+        
+        return render_template('checkout/index.html', order=order_data)
 
 
 @frontend_blueprint.route('/cart/remove/<int:product_id>', methods=['POST'])
@@ -141,17 +163,30 @@ def remove_from_cart(product_id):
 
 @frontend_blueprint.route('/checkout/process', methods=['POST'])
 def process_checkout():
-    if 'user' not in session:
-        flash('Veuillez vous connecter', 'error')
-        return redirect(url_for('frontend.login'))
+    # Span personnalisé pour le traitement de la commande
+    with tracer.start_as_current_span("checkout_process") as span:
+        if 'user' not in session:
+            span.set_attribute("process.status", "unauthorized")
+            flash('Veuillez vous connecter', 'error')
+            return redirect(url_for('frontend.login'))
 
-    if 'order' not in session:
-        flash('Aucune commande trouvée', 'error')
-        return redirect(url_for('frontend.home'))
+        if 'order' not in session:
+            span.set_attribute("process.status", "no_order")
+            flash('Aucune commande trouvée', 'error')
+            return redirect(url_for('frontend.home'))
 
-    OrderClient.post_checkout()
+        # Enrichir avec info avant traitement
+        order = session.get('order', {})
+        span.set_attribute("process.order_id", order.get('id', 'unknown'))
+        span.set_attribute("process.user_id", session.get('user', {}).get('id', 'unknown'))
+        span.add_event("Starting checkout process")
 
-    return redirect(url_for('frontend.thank_you'))
+        OrderClient.post_checkout()
+        
+        span.set_attribute("process.status", "success")
+        span.add_event("Checkout completed successfully")
+
+        return redirect(url_for('frontend.thank_you'))
 
 @frontend_blueprint.route('/order/thank-you', methods=['GET'])
 def thank_you():

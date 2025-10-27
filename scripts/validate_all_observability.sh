@@ -1,6 +1,19 @@
 #!/bin/bash
-# Script de validation complète de l'observabilité
-# Exécute tous les tests et génère un rapport de synthèse
+#
+# Script de validation automatique de l'ensemble du pipeline d'observabilité (20+ tests).
+# Vérifie les conteneurs, la connectivité, les traces Jaeger, les métriques Prometheus,
+# les datasources Grafana et génère un rapport de synthèse avec score.
+#
+# @author: Oumar Marame Ndione
+# Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+# Code Permanent: Private
+#
+# Cours: MGL870 - Automne 2025
+# Enseignant: Fabio Petrillo
+# Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+# École de technologie supérieure (ÉTS)
+# @version: 2025-10-26
+#
 
 set -e
 

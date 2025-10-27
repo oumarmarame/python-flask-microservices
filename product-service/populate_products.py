@@ -1,5 +1,19 @@
-# product-service/populate_products.py
-# Script que j'ai modifié pour initialiser le catalogue de produits
+"""
+Script de population de la base de données Product (modifié pour ajouter db.create_all()).
+Crée automatiquement les tables si elles n'existent pas, puis insère 10 produits
+dans le catalogue (Laptop Pro, Smartphone X, Headphones, etc.).
+
+@author: Oumar Marame Ndione
+Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+Code Permanent: Private
+
+Cours: MGL870 - Automne 2025
+Enseignant: Fabio Petrillo
+Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+École de technologie supérieure (ÉTS)
+@version: 2025-10-26
+"""
+
 import sys
 from application import create_app, db
 from application.models import Product

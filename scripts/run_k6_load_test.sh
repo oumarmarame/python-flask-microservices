@@ -1,6 +1,19 @@
 #!/bin/bash
-# Script de test : Test de charge avec K6
-# Objectif TP: Valider le comportement sous charge et déclencher les alertes
+#
+# Script d'exécution des tests de charge K6.
+# Génère ~400 requêtes HTTP avec 10% d'erreurs simulées pour valider
+# le comportement sous charge et déclencher les alertes Prometheus.
+#
+# @author: Oumar Marame Ndione
+# Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+# Code Permanent: Private
+#
+# Cours: MGL870 - Automne 2025
+# Enseignant: Fabio Petrillo
+# Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+# École de technologie supérieure (ÉTS)
+# @version: 2025-10-26
+#
 
 set -e
 

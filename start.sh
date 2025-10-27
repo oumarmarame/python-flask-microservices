@@ -1,4 +1,18 @@
 #!/bin/bash
+#
+# Script de démarrage automatisé du projet Flask Microservices avec OpenTelemetry.
+# Ce script orchestre le démarrage des 12 conteneurs Docker et initialise les bases de données.
+#
+# @author: Oumar Marame Ndione
+# Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+# Code Permanent: Private
+#
+# Cours: MGL870 - Automne 2025
+# Enseignant: Fabio Petrillo
+# Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+# École de technologie supérieure (ÉTS)
+# @version: 2025-10-26
+#
 
 echo "=================================================="
 echo "  Démarrage du projet Flask Microservices"

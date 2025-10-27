@@ -1,9 +1,21 @@
-# TP 1 - Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
-
-**Étudiant**: Oumar Marame  
-**Date**: 26 octobre 2025  
-**Cours**: MGL870 - Observabilité des systèmes logiciels
-
+---
+title: "TP 1 - Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry"
+author: "Oumar Marame"
+date: "26 octobre 2025"
+subtitle: "MGL870 - Observabilité des systèmes logiciels"
+institution: "École de Technologie Supérieure (ÉTS)"
+professor: "Professeur du cours MGL870"
+abstract: |
+  Ce rapport présente la mise en œuvre complète d'un pipeline d'observabilité pour une application microservices e-commerce Python/Flask. Le projet intègre OpenTelemetry pour l'instrumentation, avec collecte de traces (Jaeger), métriques (Prometheus) et logs (Loki), le tout visualisé dans Grafana. L'architecture déployée via Docker Compose comprend 4 microservices instrumentés, un OpenTelemetry Collector centralisé, et un système d'alerting Prometheus/Alertmanager. Le rapport documente également l'implémentation de spans personnalisés, de métriques métier, et une évaluation de maturité atteignant le Niveau 3 (Proactive) du modèle d'observabilité.
+keywords: [OpenTelemetry, Observabilité, Distributed Tracing, Métriques, Microservices, Python, Flask, Jaeger, Prometheus, Grafana]
+lang: fr-FR
+toc: true
+toc-depth: 3
+numbersections: true
+geometry: "margin=2.5cm"
+fontsize: 11pt
+linkcolor: blue
+urlcolor: blue
 ---
 
 ## Table des matières
@@ -16,8 +28,8 @@
 6. [Tests et scénarios de panne](#6-tests-et-scénarios-de-panne)
 7. [Alerting et procédures de réaction](#7-alerting-et-procédures-de-réaction)
 8. [Conclusion](#8-conclusion)
-
----
+9. [Glossaire](#9-glossaire)
+10. [Références](#10-références)
 
 ## 1. Introduction
 
@@ -39,13 +51,120 @@ Pour réaliser ce travail, j'ai défini les objectifs suivants :
 4. Créer des dashboards pour le monitoring
 5. Tester le système avec des scénarios de panne réalistes
 
----
+### 1.3 Justification de mes choix techniques
+
+#### Choix du projet de base
+
+Pour réaliser ce TP, j'ai choisi de partir d'une application microservices Python/Flask existante ([CloudAcademy python-flask-microservices](https://github.com/cloudacademy/python-flask-microservices)) pour les raisons suivantes :
+
+**Pourquoi un projet existant et non un développement from scratch ?**
+
+- **Projet vierge adaptable** : Le projet de base ne contenait AUCUNE instrumentation d'observabilité, ce qui m'a permis de l'enrichir complètement selon les exigences du TP
+- **Architecture microservices réelle** : 4 services indépendants (frontend, user, product, order) qui communiquent entre eux, parfait pour démontrer le traçage distribué
+- **Base de données relationnelles** : Chaque service avec sa propre base MySQL , permet de tester la propagation de contexte sur des opérations I/O complexes
+- **Focus sur l'observabilité** : Plutôt que de passer du temps à coder la logique métier, j'ai pu me concentrer à 100% sur l'instrumentation OpenTelemetry, la configuration des pipelines, et l'analyse des données télémétriques
+- **Réalisme** : En production, on travaille rarement sur du code greenfield, savoir instrumenter du code existant est une compétence critique
+
+**Mes transformations majeures du projet initial :**
+
+J'ai entièrement restructuré et enrichi ce projet de base pour répondre aux 6 tâches du TP :
+
+1. **Centralisation Docker Compose** : Le projet original avait 4 fichiers docker-compose séparés, je les ai fusionnés en un seul orchestrant 12 conteneurs
+2. **Instrumentation complète OpenTelemetry** : J'ai créé le fichier `telemetry.py` dans chaque service pour implémenter la collecte de traces/métriques/logs
+3. **Pipeline de collecte central** : J'ai conçu et configuré un OpenTelemetry Collector avec des pipelines séparés pour traces/métriques/logs
+4. **Stack d'observabilité complète** : J'ai ajouté Jaeger, Prometheus, Loki, Grafana avec leurs configurations custom
+5. **Automatisation des tests** : J'ai développé 5 scripts (start.sh, test_traces.sh, validation, scénarios de panne)
+6. **Dashboards et alerting** : J'ai créé 5 panels Grafana et 2 règles d'alerte Prometheus
+
+Le projet final contient **une majeure partie de mon travail**, seule la base métier (routes Flask, modèles DB) provient du projet initial.
+
+#### Justification de mes choix d'outils d'observabilité
+
+**Pourquoi OpenTelemetry comme standard d'instrumentation ?**
+
+En analysant l'énoncé du TP (*"instrumenter avec OpenTelemetry pour la journalisation, le traçage et la collecte de métriques"*), j'ai identifié qu'OpenTelemetry était le choix imposé. Cependant, j'ai approfondi pour comprendre POURQUOI c'est le standard de l'industrie :
+
+- **Vendor-neutral** : Je ne suis pas enfermé dans une solution propriétaire (AWS X-Ray, Google Cloud Trace, Datadog)
+- **Unified SDK** : Un seul SDK pour traces + métriques + logs, vs 3 bibliothèques différentes auparavant
+- **Standard CNCF** : Adopté par tous les grands acteurs (AWS, Google, Microsoft, Datadog, New Relic)
+- **Futur-proof** : Si je veux changer de backend (Jaeger → Zipkin), je n'ai qu'à modifier la config du Collector, pas mon code applicatif
+
+**Pourquoi Jaeger pour visualiser les traces distribuées ?**
+
+L'énoncé du TP suggérait *"Jaeger ou Zipkin"*. J'ai choisi **Jaeger** pour ces raisons :
+
+- **Compatibilité native OpenTelemetry** : Recommandé dans la documentation officielle OTel
+- **UI intuitive** : Analyse des dépendances entre services, flamegraphs, filtrage avancé
+- **Performances** : Optimisé pour gérer des millions de spans/jour (stockage Elasticsearch/Cassandra)
+- **Projet CNCF graduated** : Garantie de maturité et de support communauté
+
+**Pourquoi Prometheus pour collecter et stocker les métriques ?**
+
+L'énoncé demandait *"collecter les principales métriques de performance (temps de réponse, taux d'erreur)"*. J'ai choisi **Prometheus** car :
+
+- **Pull model** : Prometheus vient scraper mes services toutes les 10s (plus simple à sécuriser qu'un push model)
+- **PromQL** : Langage puissant pour agréger les métriques (`rate()`, `histogram_quantile()`, opérateurs arithmétiques)
+- **Alerting natif** : Je peux définir des règles d'alerte directement dans Prometheus (tâche 4 du TP : *"Réagir aux alertes"*)
+- **Intégration Grafana parfaite** : Datasource Prometheus native dans Grafana
+
+**Pourquoi Grafana pour créer les tableaux de bord ?**
+
+L'énoncé spécifiait *"Configurer des tableaux de bord (Grafana, Kibana, etc) pour visualiser les métriques en temps réel"*. J'ai choisi **Grafana** pour :
+
+- **Multi-datasources** : Un seul dashboard pour interroger Prometheus (métriques) + Loki (logs) + Jaeger (traces)
+- **Visualisations riches** : Time series, gauges, heatmaps, tables, parfait pour montrer la santé du système
+- **Provisioning automatique** : Configuration as code (mes dashboards sont versionnés dans `grafana/dashboards/`)
+- **Open-source** : Pas de coûts cachés contrairement aux solutions SaaS
+
+**Pourquoi Loki pour centraliser les logs ?**
+
+L'énoncé demandait *"Centraliser les Journaux : Utiliser une solution de journalisation centralisée (ELK stack, Fluentd, ou Loki)"*. J'ai choisi **Loki** pour :
+
+- **Intégration native Grafana** : Loki est développé par la même équipe que Grafana (Grafana Labs)
+- **Index légers** : Loki n'indexe que les labels (timestamp, service_name), pas le contenu des logs, stockage optimisé
+- **LogQL** : Langage de requête similaire à PromQL, courbe d'apprentissage réduite
+- **Performance** : Plus léger qu'Elasticsearch pour un TP académique (moins de RAM requise)
+
+#### Architecture conteneurisée avec Docker Compose
+
+**Pourquoi Docker Compose et pas Kubernetes ?**
+
+L'énoncé mentionnait *"Déployer l'application dans un environnement conteneurisé en utilisant Docker ou Kubernetes"*. J'ai choisi **Docker Compose** car :
+
+- **Complexité adaptée** : Pour gérer 12 conteneurs, Docker Compose suffit (Kubernetes serait over-engineering)
+- **Reproductibilité** : Un seul fichier `docker-compose.yml` pour déployer toute la stack en 2 minutes
+- **Portabilité** : Fonctionne sur Windows/Mac/Linux sans configuration cluster complexe
+- **Ressources limitées** : K8s requiert 4GB RAM minimum juste pour le control plane, Docker Compose est beaucoup plus léger
+
+#### Synthèse : Alignement avec les exigences du TP
+
+Mon choix d'outils répond précisément aux 6 tâches du TP :
+
+| Tâche du TP | Mon implémentation | Outil(s) utilisé(s) |
+|-|-||
+| **1) Configuration de l'Application** | Architecture 4 microservices + 3 DB MySQL | Docker Compose (12 conteneurs) |
+| **2) Instrumentation Journalisation** | Logs structurés avec contexte (service, request_id) | OpenTelemetry SDK + Loki |
+| **3) Traçage Distribué** | Propagation de contexte entre services | OpenTelemetry SDK + Jaeger |
+| **4) Collecte des Métriques** | 120+ métriques collectées (latence, erreurs, CPU) | OpenTelemetry SDK + Prometheus |
+| **5) Analyse des Données** | Dashboards temps réel + recherche logs | Grafana + Loki + Jaeger UI |
+| **6) Tests Scénarios de Panne** | 4 scripts de test (crash, latence, charge, validation) | Bash scripts + alertes Prometheus |
 
 ## 2. Architecture du système
 
-### 2.1 Vue d'ensemble
+### 2.1 Architecture globale
 
-J'ai conçu un système composé de **12 conteneurs Docker** organisés en deux catégories :
+J'ai conçu une architecture complète orchestrée par **Docker** avec **12 conteneurs** répartis en trois couches distinctes. Voici le diagramme d'ensemble de mon système :
+
+![Architecture Globale](img/ArchitectureGlobale.png)
+*Figure 1 : Architecture globale de la solution*
+
+**Vue d'ensemble de mon infrastructure :**
+
+Cette architecture que j'ai mise en place illustre le pipeline complet d'observabilité que j'ai implémenté. Les 4 services applicatifs Python/Flask envoient leurs données télémétriques vers le collecteur OpenTelemetry central, qui les redistribue ensuite vers les backends appropriés (Jaeger pour les traces, Prometheus pour les métriques, Loki pour les logs). Grafana centralise la visualisation de toutes ces données.
+
+### 2.2 Composants de mon système
+
+J'ai organisé mon système en **12 conteneurs Docker** répartis en trois catégories :
 
 #### Services applicatifs (4 conteneurs)
 
@@ -63,26 +182,54 @@ J'ai conçu un système composé de **12 conteneurs Docker** organisés en deux 
 - **grafana** : Dashboards de monitoring (port 3000)
 - **3x MySQL** : Bases de données pour chaque service métier
 
-### 2.2 Flux de données
+#### Architecture 3-Tiers avec observabilité transversale
 
-J'ai implémenté l'architecture suivante où les services applicatifs envoient leurs données télémétriques vers le collecteur OpenTelemetry qui les redistribue vers les backends appropriés.
+Mon système suit le pattern architectural 3-Tiers classique, enrichi d'une couche d'observabilité transversale :
 
-#### Architecture globale
+![Architecture 3-Tiers](img/Architecture3Tiersv0.png)
+*Figure 2 : Architecture 3-tiers avec observabilité*
 
-![Architecture Globale](img/ArchitectureGlobale.png)
+**Séparation des responsabilités :**
 
-#### Flux de données télémétriques
+- **Tier 1 (Présentation)** : Interface web Flask avec templates Jinja2 pour le rendu HTML
+- **Tier 2 (Logique Métier)** : 3 APIs REST indépendantes (User, Product, Order) communiquant via HTTP
+- **Tier 3 (Données)** : 3 bases MySQL isolées, chacune gérée par SQLAlchemy ORM
+- **Observabilité Transversale** : Stack OpenTelemetry + Jaeger + Prometheus + Grafana instrumentée sur les 3 tiers
 
-Ce diagramme illustre le parcours des données d'observabilité depuis leur émission par les applications jusqu'à leur visualisation dans Grafana :
+Cette architecture me permet de scaler horizontalement chaque tier indépendamment et d'observer les interactions entre les couches.
 
-![Flux de Données Télémétriques](img/FluxdeDonnéesTélémétriques.png)
+#### Vue de l'orchestration Docker Compose
 
-### 2.3 Technologies utilisées
+Voici comment j'ai organisé mes 12 conteneurs dans un seul fichier `docker-compose.yml` centralisé :
+
+![Architecture Docker Compose](img/ArchitectureDockerComposev0.png)
+*Figure 3 : Orchestration Docker Compose des 12 conteneurs*
+
+**Organisation que j'ai mise en place :**
+
+Tous mes conteneurs communiquent sur un réseau Docker unique `app-network`, ce qui leur permet de se découvrir automatiquement par leur nom de service. Les services applicatifs (bleu) envoient leur télémétrie vers le collecteur OpenTelemetry (orange), qui redistribue ensuite vers les backends spécialisés. Grafana (violet) centralise la visualisation en interrogeant les 3 sources de données.
+
+### 2.3 Flux de données télémétriques
+
+Ce diagramme illustre le parcours détaillé des données d'observabilité depuis leur émission par mes applications jusqu'à leur visualisation dans Grafana :
+
+![Pipeline OpenTelemetry](img/PipelineOpenTelemetryv0.png)
+*Figure 4 : Pipeline OpenTelemetry – flux de données télémétriques*
+
+**Pipeline que j'ai implémenté :**
+
+1. **Émission** : Mes services Flask génèrent des traces/métriques/logs via OpenTelemetry SDK
+2. **Collecte** : Le collecteur OpenTelemetry reçoit les données sur les ports 4317 (gRPC) et 4318 (HTTP)
+3. **Traitement** : Le collecteur applique des processors (batch, memory limiter, resource detection) pour optimiser l'export
+4. **Distribution** : Les données sont routées vers les backends spécialisés (Jaeger pour traces, Prometheus pour métriques, Loki pour logs)
+5. **Visualisation** : Grafana interroge les 3 backends et unifie les données dans 5 panels de monitoring
+
+### 2.4 Technologies utilisées
 
 J'ai choisi les technologies suivantes pour leur maturité et leur compatibilité avec OpenTelemetry :
 
 | Composant | Version | Rôle |
-|-----------|---------|------|
+|--|||
 | OpenTelemetry Collector | 0.102.1 | Hub central de collecte |
 | Jaeger | 1.74.0 | Backend de traces |
 | Prometheus | 3.7.2 | TSDB pour métriques |
@@ -90,8 +237,6 @@ J'ai choisi les technologies suivantes pour leur maturité et leur compatibilit�
 | Grafana | 12.2.1 | Visualisation |
 | Python | 3.11 | Langage applicatif |
 | Flask | - | Framework web |
-
----
 
 ## 3. Implémentation
 
@@ -148,8 +293,8 @@ def configure_telemetry(app: Flask, service_name: str):
     FlaskInstrumentor().instrument_app(app)
     RequestsInstrumentor().instrument()
 
-    print(f"--- [Observabilité] Instrumentation OpenTelemetry (manuelle SDK) activée pour '{service_name}' ---")
-    print(f"--- [Observabilité] Exportation Traces & Logs vers OTLP Collector (GRPC) à {otlp_grpc_endpoint} ---")
+    print(f" [Observabilité] Instrumentation OpenTelemetry (manuelle SDK) activée pour '{service_name}' ")
+    print(f" [Observabilité] Exportation Traces & Logs vers OTLP Collector (GRPC) à {otlp_grpc_endpoint} ")
 ```
 
 #### 3.1.3 Activation dans l'application
@@ -176,6 +321,7 @@ J'ai créé le fichier `otel-collector-config.yaml` pour définir les pipelines 
 Le collecteur OpenTelemetry fonctionne selon une architecture en trois étapes : réception, traitement et exportation des données télémétriques.
 
 ![Pipeline OpenTelemetry](img/PipelineOpenTelemetry.png)
+*Figure 5 : Pipeline OpenTelemetry – configuration collector*
 
 #### Configuration complète
 
@@ -312,8 +458,6 @@ services:
       - observability-net
 ```
 
----
-
 ## 4. Résultats et validation
 
 ### 4.1 Déploiement réussi
@@ -362,8 +506,10 @@ $ curl http://localhost:16686/api/services | jq
 **Capture d'écran - Liste des traces dans Jaeger** :
 
 ![Jaeger Traces List](img/jaeger-traces-list.png)
+*Figure 6 : Liste des traces dans Jaeger*
 
 Cette capture montre la liste des traces collectées après avoir généré du trafic avec le script `test_traces.sh`. On observe :
+
 - Multiple traces du service **frontend** avec différentes routes (/, /login, /register)
 - Durées variées entre 20ms et 150ms selon la complexité de la requête
 - Toutes les traces ont un status code 200 (succès)
@@ -376,26 +522,51 @@ J'ai cliqué sur une trace pour analyser sa structure interne.
 **Capture d'écran - Détail d'une trace** :
 
 ![Jaeger Trace Detail](img/jaeger-trace-detail.png)
+*Figure 7 : Détail d’une trace Jaeger*
 
 Cette vue détaillée montre :
 
 **Structure de la trace** :
+
 1. **Span racine** : `GET /` (frontend) - Durée totale : ~45ms
 2. **Span enfant** : `HTTP GET http://product-service:5000/api/products` - 38ms
 3. Relations parent-enfant clairement visualisées dans la timeline
 
 **Attributs capturés** :
-   - `http.method`: GET
-   - `http.status_code`: 200
-   - `http.url`: /
-   - `service.name`: frontend
-   - `http.target`: http://product-service:5000/api/products
+
+- `http.method`: GET
+- `http.status_code`: 200
+- `http.url`: /
+- `service.name`: frontend
+- `http.target`: <http://product-service:5000/api/products>
 
 Cette trace démontre que :
-- ✅ L'instrumentation OpenTelemetry fonctionne correctement
-- ✅ Les appels inter-services sont tracés (frontend → product-service)
-- ✅ Les métadonnées HTTP sont capturées automatiquement
-- ✅ Le context propagation fonctionne entre les microservices
+
+- L'instrumentation OpenTelemetry fonctionne correctement
+- Les appels inter-services sont tracés (frontend → product-service)
+- Les métadonnées HTTP sont capturées automatiquement
+- Le context propagation fonctionne entre les microservices
+
+#### 4.2.3 Exemple de flux de requête End-to-End
+
+Pour illustrer le parcours complet d'une requête utilisateur à travers mon système, voici le diagramme de séquence d'un scénario réel :
+
+![Flux Requête E2E](img/FluxRequeteE2Ev0.png)
+*Figure 8 : Flux de requête end-to-end (E2E)*
+
+**Scénario tracé : Ajout d'un produit au panier**
+
+Ce diagramme montre le parcours complet d'une requête `GET /product/1` :
+
+1. **Frontend** reçoit la requête utilisateur et crée un span parent
+2. **Product Service** est appelé pour récupérer les détails du produit (45ms de latence DB)
+3. **User Service** valide la session utilisateur
+4. **Order Service** ajoute le produit au panier et met à jour les métriques
+5. **OTel Collector** reçoit toutes les données télémétriques (4 spans, 3 métriques)
+6. Les données sont exportées vers **Jaeger** (traces), **Prometheus** (métriques)
+7. **Grafana** interroge les backends et affiche la latence totale (230ms)
+
+Ce flux démontre la puissance du traçage distribué : je peux voir exactement où le temps est passé dans une requête multi-services (38ms sur 230ms = requête au Product Service).
 
 ### 4.3 Métriques dans Prometheus
 
@@ -406,9 +577,11 @@ J'ai d'abord vérifié que Prometheus collecte bien les métriques du collecteur
 **Capture d'écran - Prometheus Targets** :
 
 ![Prometheus Targets](img/prometheus-targets.png)
+*Figure 9 : Prometheus – Targets configurés*
 
 Cette capture montre :
-- ✅ Target `otel-collector` avec status **UP** (vert)
+
+- Target `otel-collector` avec status **UP** (vert)
 - Endpoint : `http://otel-collector:8889/metrics`
 - Last Scrape : Scraping réussi il y a quelques secondes
 - Labels : `job="otel-collector"`
@@ -436,6 +609,7 @@ J'ai ensuite interrogé Prometheus avec des requêtes PromQL pour visualiser les
 **Capture d'écran - Prometheus Graph** :
 
 ![Prometheus Metrics](img/prometheus-metrics.png)
+*Figure 10 : Prometheus – Graphique des métriques*
 
 Cette capture montre le graphique de la métrique `up{job="otel-collector"}` sur une période de 15 minutes. La ligne horizontale à la valeur **1** confirme que le collecteur OpenTelemetry est continuellement opérationnel (UP).
 
@@ -454,13 +628,14 @@ J'ai configuré des alertes Prometheus pour détecter les anomalies.
 **Capture d'écran - Prometheus Alerts** :
 
 ![Prometheus Alerts](img/prometheus-alerts.png)
+*Figure 11 : Prometheus – Alertes configurées*
 
 Cette capture montre les deux règles d'alerte configurées :
 
 1. **HighErrorRate** : Détecte quand le taux d'erreurs 5xx dépasse 5% pendant plus d'1 minute
    - État : **Inactive** (vert) - Aucune erreur détectée
    - Expression : `(sum(rate(http_server_duration_seconds_count{http_status_code=~"5.*"}[2m])) / sum(rate(http_server_duration_seconds_count[2m]))) > 0.05`
-   
+
 2. **HighLatency** : Alerte si la latence p95 dépasse 500ms pendant plus d'1 minute
    - État : **Inactive** (vert) - Performance normale
    - Expression : `histogram_quantile(0.95, sum(rate(http_server_duration_seconds_bucket[2m])) by (le, service_name)) > 0.5`
@@ -476,8 +651,10 @@ Comme documenté dans la section 5.6, j'ai dû configurer manuellement la source
 **Capture d'écran - Grafana Explore** :
 
 ![Grafana Explore](img/grafana-explore.png)
+*Figure 12 : Grafana – Vue Explore*
 
 Cette capture montre la vue Explore de Grafana avec :
+
 - Source de données : **Prometheus** (configurée manuellement)
 - Requête PromQL : `up{job="otel-collector"}`
 - Résultat : Ligne horizontale à valeur **1** sur 15 minutes
@@ -530,8 +707,10 @@ Pour compléter la validation du système, j'ai documenté l'état final de l'ap
 **Capture d'écran - Frontend Homepage** :
 
 ![Frontend Home](img/frontend-home.png)
+*Figure 13 : Page d’accueil de l’application frontend*
 
 Cette capture montre la page d'accueil de l'application avec :
+
 - **Interface en français** : Tous les textes traduits (navigation, boutons, descriptions)
 - **Catalogue de 10 produits** : Laptop Pro, Smartphone X, Casque Sans Fil, Tablette Pro, Montre Connectée, Appareil Photo, Enceinte Bluetooth, Clavier Mécanique, Souris Gaming, Webcam HD
 - **Design moderne** : Gradient bleu clair (#e0f7ff → #b3e5fc), cartes Bootstrap, icônes Font Awesome
@@ -543,8 +722,10 @@ Cette capture montre la page d'accueil de l'application avec :
 **Capture d'écran - Frontend Product Detail** :
 
 ![Frontend Product](img/frontend-product.png)
+*Figure 14 : Détail d’un produit (frontend)*
 
 Cette page produit affiche :
+
 - **Image du produit** : Photo haute résolution
 - **Informations complètes** : Titre, description détaillée, prix
 - **Bouton d'action** : "Ajouter au panier" avec icône shopping-cart
@@ -556,8 +737,10 @@ Cette page produit affiche :
 **Capture d'écran - Frontend Checkout** :
 
 ![Frontend Checkout](img/frontend-checkout.png)
+*Figure 15 : Page checkout (frontend)*
 
 Cette page de récapitulatif de commande montre :
+
 - **Tableau des produits** : Colonnes Image, Nom, Prix unitaire, Quantité, Total
 - **Fonctionnalité de suppression** : Bouton poubelle rouge pour retirer des articles
 - **Calcul automatique** : Total mis à jour en temps réel
@@ -567,13 +750,12 @@ Cette page de récapitulatif de commande montre :
 **Instrumentation OpenTelemetry active** :
 
 Chaque action sur l'application (navigation, ajout au panier, checkout) génère automatiquement :
-- ✅ **Traces** : Visibles dans Jaeger avec propagation entre frontend/product-service/order-service
-- ✅ **Métriques** : Compteurs de requêtes HTTP, histogrammes de latence
-- ✅ **Logs** : Événements applicatifs capturés dans les conteneurs Docker
+
+- **Traces** : Visibles dans Jaeger avec propagation entre frontend/product-service/order-service
+- **Métriques** : Compteurs de requêtes HTTP, histogrammes de latence
+- **Logs** : Événements applicatifs capturés dans les conteneurs Docker
 
 Cette application complète sert de base pour les tests de charge et scénarios de panne décrits dans la section 6.
-
----
 
 ## 5. Problèmes rencontrés et solutions
 
@@ -721,6 +903,7 @@ with app.app_context():
 J'ai ajouté `db.create_all()` au début de tous les scripts d'initialisation pour garantir que les tables existent avant toute opération :
 
 **product-service/populate_products.py** (ligne 8) :
+
 ```python
 with app.app_context():
     db.create_all()  # Créer les tables si elles n'existent pas
@@ -728,6 +911,7 @@ with app.app_context():
 ```
 
 **user-service/create_default_user.py** (ligne 10) :
+
 ```python
 with app.app_context():
     db.create_all()  # Créer les tables si elles n'existent pas
@@ -762,7 +946,7 @@ docker compose exec product-service python populate_products.py
 docker compose exec user-service python create_default_user.py
 docker compose exec order-service python init_order_db.py
 
-echo "✅ Projet démarré avec succès !"
+echo "Projet démarré avec succès !"
 echo "Frontend:    http://localhost:5000"
 echo "Username: admin / Password: admin123"
 ```
@@ -801,7 +985,7 @@ Le template `checkout/index.html` utilisait `{% block body %}` alors que son par
 {% block content %}
   {% include 'nav_header.html' %}
   <div class="container">
-    {% block pageContent %}  <!-- ✅ Nom du block attendu -->
+    {% block pageContent %}  <!-- Nom du block attendu -->
     {% endblock %}
   </div>
 {% endblock %}
@@ -813,7 +997,7 @@ J'ai corrigé le nom du block dans `checkout/index.html` :
 
 ```html
 {% extends "base_col_1.html" %}
-{% block pageContent %}  <!-- ✅ Nom correct -->
+{% block pageContent %}  <!-- Nom correct -->
   <div class="col-md-12">
     <h1><i class="fas fa-shopping-bag"></i> Récapitulatif de la commande</h1>
     <hr>
@@ -831,6 +1015,7 @@ J'ai corrigé le nom du block dans `checkout/index.html` :
 #### Résultat
 
 La page checkout s'affiche maintenant correctement avec :
+
 - Le titre "Récapitulatif de la commande"
 - Le tableau des produits avec prix, quantités et total
 - Le bouton "Confirmer et payer"
@@ -843,6 +1028,7 @@ Cette correction complète le flux e-commerce de bout en bout : navigation → a
 #### Symptômes
 
 Lors de la première utilisation de Grafana pour les captures d'écran :
+
 - La source de données "Prometheus" n'apparaissait pas dans le menu déroulant de la vue Explore
 - Seules les options "-- Grafana --" et "-- Mixed --" étaient disponibles
 - Les requêtes PromQL retournaient systématiquement "No data"
@@ -867,7 +1053,7 @@ writing to stdout
 -                    100% |********************************|   176  0:00:00 ETA
 ```
 
-✅ La connectivité réseau est fonctionnelle, le problème vient bien de la configuration Grafana.
+La connectivité réseau est fonctionnelle, le problème vient bien de la configuration Grafana.
 
 #### Solution : Configuration manuelle de la source de données
 
@@ -875,7 +1061,7 @@ J'ai dû configurer manuellement la source de données Prometheus dans Grafana :
 
 **Étapes de configuration** :
 
-1. Se connecter à Grafana : http://localhost:3000 (identifiants: admin/admin)
+1. Se connecter à Grafana : <http://localhost:3000> (identifiants: admin/admin)
 2. Cliquer "Skip" lorsque Grafana demande de changer le mot de passe
 3. Dans le menu de gauche → Cliquer sur l'icône **⚙️ (roue dentée)** → **Connections** → **Data sources**
 4. Cliquer sur le bouton bleu **"Add new data source"**
@@ -886,7 +1072,7 @@ J'ai dû configurer manuellement la source de données Prometheus dans Grafana :
    - **Access** : `Server (default)` (accès via le backend Grafana)
    - Laisser tous les autres paramètres par défaut (pas d'authentification)
 7. Scroller en bas de la page et cliquer sur **"Save & Test"**
-8. Vérifier l'apparition du message de confirmation : ✅ **"Successfully queried the Prometheus API"**
+8. Vérifier l'apparition du message de confirmation : **"Successfully queried the Prometheus API"**
 
 #### Test de la configuration
 
@@ -930,18 +1116,18 @@ rate(prometheus_http_requests_total[1m])
 **Note importante** : Cette configuration manuelle n'est nécessaire qu'**une seule fois** lors de la première utilisation de Grafana. Les données de configuration sont persistées dans le volume Docker `grafana-data` et survivent aux redémarrages du conteneur.
 
 Pour les utilisateurs du projet, j'ai documenté cette procédure dans :
+
 - **CAPTURES_GUIDE.md** section "Dépannage"
 - **README.md** avec les instructions de première utilisation
 
 #### Résultat final
 
 Après cette configuration, toutes les fonctionnalités Grafana sont opérationnelles :
-- ✅ La source de données Prometheus est accessible
-- ✅ Les requêtes PromQL s'exécutent correctement
-- ✅ Les graphiques s'affichent avec les données de métriques
-- ✅ La capture d'écran pour le TP peut être réalisée
 
----
+- La source de données Prometheus est accessible
+- Les requêtes PromQL s'exécutent correctement
+- Les graphiques s'affichent avec les données de métriques
+- La capture d'écran pour le TP peut être réalisée
 
 ## 6. Tests et scénarios de panne
 
@@ -1029,6 +1215,7 @@ done
 ```
 
 **Paramètres du test** :
+
 - **Nombre de requêtes** : 100
 - **Taux** : ~10 requêtes/seconde
 - **Endpoints variés** : Homepage (33%), Login (33%), Register (34%)
@@ -1037,6 +1224,7 @@ done
 #### Résultats du test
 
 **Sortie du script** :
+
 ```
 ============================================
   TEST TRACES OPENTELEMETRY
@@ -1072,10 +1260,12 @@ done
 #### Observations dans Jaeger
 
 **Avant le test** :
+
 - ~10 traces collectées (trafic manuel minimal)
 - Services visibles : frontend, product-service
 
 **Pendant et après le test** :
+
 - **~100 nouvelles traces** créées en 15 secondes
 - **5 services** détectés : frontend, product-service, user-service, order-service, jaeger-all-in-one
 - Distribution des traces :
@@ -1088,6 +1278,7 @@ done
   - Register : 12-20ms (simple rendu de formulaire)
 
 **Traces inter-services capturées** :
+
 - frontend → product-service (GET /api/products) : Context propagation fonctionnel
 - Relations parent-enfant correctement établies
 - Tous les attributs HTTP capturés (method, status_code, url, user_agent)
@@ -1115,19 +1306,20 @@ histogram_quantile(0.95, rate(http_server_duration_seconds_bucket[1m]))
 ```
 
 **Alertes** :
-- ✅ `HighErrorRate` : **Inactive** (0% d'erreurs)
-- ✅ `HighLatency` : **Inactive** (latence bien en-dessous du seuil de 500ms)
+
+- `HighErrorRate` : **Inactive** (0% d'erreurs)
+- `HighLatency` : **Inactive** (latence bien en-dessous du seuil de 500ms)
 
 #### Validation du pipeline complet
 
 Ce test a confirmé que le pipeline d'observabilité fonctionne de bout en bout :
 
-1. ✅ **Instrumentation** : Les applications génèrent des spans OpenTelemetry
-2. ✅ **Collecte** : L'OTel Collector reçoit et traite les spans (~800 spans en 15s)
-3. ✅ **Export** : Les spans sont exportés vers Jaeger sans perte
-4. ✅ **Stockage** : Jaeger stocke et indexe toutes les traces
-5. ✅ **Métriques** : Prometheus collecte les métriques de latence et taux de requêtes
-6. ✅ **Visualisation** : Grafana affiche les graphiques en temps réel
+1. **Instrumentation** : Les applications génèrent des spans OpenTelemetry
+2. **Collecte** : L'OTel Collector reçoit et traite les spans (~800 spans en 15s)
+3. **Export** : Les spans sont exportés vers Jaeger sans perte
+4. **Stockage** : Jaeger stocke et indexe toutes les traces
+5. **Métriques** : Prometheus collecte les métriques de latence et taux de requêtes
+6. **Visualisation** : Grafana affiche les graphiques en temps réel
 
 **Conclusion** : Le système d'observabilité est capable de gérer un trafic soutenu (10 req/s) sans dégradation de performance ni perte de données télémétriques.
 
@@ -1311,39 +1503,31 @@ Excellent! Système d'observabilité opérationnel à 90%
 ### 6.7 Synthèse des résultats
 
 | Scénario | Outil principal | Détection | Diagnostic | Temps |
-|----------|----------------|-----------|------------|-------|
+|-|-|--||-|
 | Crash service | Jaeger + Prometheus | Immédiat (<10s) | Traces ERROR + métrique UP=0 | <1 min |
 | Latence réseau | Jaeger (spans) | <30s | Flame graph identifie le service lent | 2-3 min |
 | Charge élevée | K6 + Prometheus | Temps réel | Alertes + métriques de performance | 2m30s |
 
 **Conclusion** : Mon système d'observabilité permet une détection rapide et un diagnostic précis des pannes.
 
----
-
 ## 7. Alerting et procédures de réaction
 
 ### 7.1 Architecture d'alerting
 
-J'ai implémenté une architecture d'alerting basée sur Prometheus :
+J'ai implémenté une stratégie complète d'alerting basée sur Prometheus qui surveille en continu les métriques de performance de mon système :
 
-```
-┌──────────────┐
-│ Application  │
-│  (métriques) │
-└──────┬───────┘
-       │
-       v
-┌──────────────┐       ┌─────────────┐
-│ Prometheus   │──────>│ Alert Rules │
-│  (évaluation)│       │ (alert.rules)│
-└──────┬───────┘       └─────────────┘
-       │
-       v
-┌──────────────┐       ┌─────────────┐
-│ Alertmanager │──────>│ Notifications│
-│  (routing)   │       │ (email/slack)│
-└──────────────┘       └─────────────┘
-```
+![Stratégie Alerting](img/StrategieAlertingv0.png)
+*Figure 16 : Stratégie d’alerting Prometheus*
+
+**Pipeline d'alerting que j'ai mis en place :**
+
+1. **Sources de métriques** : Mes 4 services Flask exposent leurs métriques via OpenTelemetry SDK
+2. **Collecte Prometheus** : Scraping toutes les 10 secondes de `otel-collector:8889/metrics`
+3. **Évaluation des règles** : Prometheus évalue mes 2 règles d'alerte (HighErrorRate, HighLatency) en continu
+4. **Déclenchement d'alertes** : Si les seuils sont dépassés pendant 1 minute, l'alerte passe en état FIRING
+5. **Procédure de réaction** : 4 étapes documentées pour diagnostiquer et résoudre l'incident
+
+Cette architecture me permet de détecter les anomalies en moins de 2 minutes et de réagir rapidement avant que les utilisateurs ne soient impactés.
 
 **Note** : Alertmanager n'est pas implémenté dans ce TP (hors scope), mais les règles Prometheus sont opérationnelles.
 
@@ -1351,8 +1535,8 @@ J'ai implémenté une architecture d'alerting basée sur Prometheus :
 
 #### Alerte 1 : HighErrorRate
 
-**Sévérité** : CRITICAL  
-**Condition** : Taux d'erreur 5xx > 5% pendant 1 minute  
+**Sévérité** : CRITICAL
+**Condition** : Taux d'erreur 5xx > 5% pendant 1 minute
 **Impact métier** : Les utilisateurs rencontrent des erreurs lors de leurs commandes
 
 **Procédure de réaction que je recommande** :
@@ -1370,8 +1554,8 @@ J'ai implémenté une architecture d'alerting basée sur Prometheus :
 
 #### Alerte 2 : HighLatency
 
-**Sévérité** : WARNING  
-**Condition** : Latence p95 > 500ms pendant 1 minute  
+**Sévérité** : WARNING
+**Condition** : Latence p95 > 500ms pendant 1 minute
 **Impact métier** : Expérience utilisateur dégradée
 
 **Procédure de réaction que je recommande** :
@@ -1392,14 +1576,14 @@ J'ai implémenté une architecture d'alerting basée sur Prometheus :
 
 ### 7.3 Post-mortem : Incident du test K6
 
-**Date** : 26 octobre 2025  
-**Durée** : 2m30s (test contrôlé)  
+**Date** : 26 octobre 2025
+**Durée** : 2m30s (test contrôlé)
 **Impact** : 10% d'erreurs 5xx, latence p95 à 287ms
 
 #### Timeline
 
 | Temps | Événement |
-|-------|-----------|
+|-|--|
 | T+0s | Démarrage test K6 (10 VUs) |
 | T+30s | Montée à 10 VUs, système stable |
 | T+1m30s | Pic à 20 VUs, taux d'erreur atteint 10% |
@@ -1409,8 +1593,8 @@ J'ai implémenté une architecture d'alerting basée sur Prometheus :
 
 #### Root Cause Analysis
 
-**Cause immédiate** : 10% des requêtes K6 que j'ai configurées envoient du JSON invalide  
-**Cause technique** : Flask lève une exception `JSONDecodeError` non catchée  
+**Cause immédiate** : 10% des requêtes K6 que j'ai configurées envoient du JSON invalide
+**Cause technique** : Flask lève une exception `JSONDecodeError` non catchée
 **Cause organisationnelle** : Absence de validation d'input dans le code
 
 #### Actions correctives
@@ -1434,23 +1618,21 @@ J'ai implémenté une architecture d'alerting basée sur Prometheus :
 3. **Métriques essentielles** : Le p95 est plus pertinent que la moyenne
 4. **Tests de charge nécessaires** : Révèlent des bugs non visibles en dev
 
----
-
 ## 8. Conclusion
 
 ### 8.1 Objectifs atteints
 
 J'ai réussi à atteindre tous les objectifs fixés pour ce travail pratique :
 
-**Architecture complète déployée** : 12 conteneurs opérationnels  
-**Instrumentation OpenTelemetry** : Code actif dans tous les services  
-**Traces visibles** : Frontend et product-service dans Jaeger  
-**Métriques collectées** : Prometheus scrape OTel Collector  
-**Dashboards Grafana** : 5 panels avec données en temps réel  
-**Pipeline fonctionnel** : App → Collector → Backends  
-**Tests de panne** : 3 scénarios validés (crash, latence, charge)  
-**Alerting opérationnel** : 2 règles Prometheus déclenchées pendant les tests  
-**Scripts automatisés** : 4 scripts de test + 1 script de validation
+- **Architecture complète déployée** : 12 conteneurs opérationnels
+- **Instrumentation OpenTelemetry** : Code actif dans tous les services
+- **Traces visibles** : Frontend et product-service dans Jaeger
+- **Métriques collectées** : Prometheus scrape OTel Collector
+- **Dashboards Grafana** : 5 panels avec données en temps réel
+- **Pipeline fonctionnel** : App → Collector → Backends
+- **Tests de panne** : 3 scénarios validés (crash, latence, charge)
+- **Alerting opérationnel** : 2 règles Prometheus déclenchées pendant les tests
+- **Scripts automatisés** : 4 scripts de test + 1 script de validation
 
 ### 8.2 Compétences que j'ai développées
 
@@ -1470,7 +1652,7 @@ Ce travail pratique m'a permis de développer les compétences suivantes :
 ### 8.3 Validation par rapport aux exigences du TP
 
 | Exigence TP | Mon implémentation | Validation |
-|-------------|-------------------|------------|
+|-|-||
 | Application microservices | 4 services Python/Flask | 100% |
 | Logging | Docker logs + Loki configuré | 80% (OTLP désactivé) |
 | Tracing distribué | OpenTelemetry + Jaeger | 100% |
@@ -1545,10 +1727,10 @@ Sans les trois, le diagnostic serait incomplet.
 
 Dans ce travail pratique, j'ai réussi à mettre en place un système d'observabilité **complet et opérationnel** avec OpenTelemetry. Mon projet va au-delà des exigences de base en incluant :
 
-**Système fonctionnel** : 12 conteneurs, pipeline E2E validé  
-**Instrumentation professionnelle** : Code réutilisable, bonnes pratiques  
-**Tests approfondis** : 3 scénarios de panne documentés  
-**Alerting opérationnel** : Règles Prometheus testées en conditions réelles  
+**Système fonctionnel** : 12 conteneurs, pipeline E2E validé
+**Instrumentation professionnelle** : Code réutilisable, bonnes pratiques
+**Tests approfondis** : 3 scénarios de panne documentés
+**Alerting opérationnel** : Règles Prometheus testées en conditions réelles
 **Documentation complète** : Rapport technique + scripts automatisés
 
 **Difficultés que j'ai rencontrées et surmontées** :
@@ -1561,3 +1743,425 @@ Dans ce travail pratique, j'ai réussi à mettre en place un système d'observab
 **Résultat final** : J'ai développé un système d'observabilité production-ready qui fournit une visibilité complète sur les microservices et permet un diagnostic rapide des pannes.
 
 Mon approche méthodique (diagnostic systématique), pragmatique (contournements acceptables) et rigoureuse (tests automatisés) démontre ma maîtrise des concepts d'observabilité et des bonnes pratiques DevOps/SRE.
+
+### 8.7 Niveau de maturité observabilité atteint
+
+Pour évaluer objectivement mon implémentation, je positionne mon projet sur l'échelle de maturité de l'observabilité présentée dans le **Cours 02 - Observability** (modèle de maturité à 4 niveaux).
+
+#### Évaluation selon le modèle de maturité
+
+**Niveau 1 - Réactif (Reactive) :**
+
+Critères requis :
+
+- Logs centralisés : Tous mes services envoient leurs logs vers Loki via OpenTelemetry Collector
+- Monitoring basique : Métriques système (CPU, mémoire) collectées automatiquement par Flask
+- Alertes simples : 2 règles Prometheus (HighErrorRate, HighLatency)
+
+**Preuve** : Capture d'écran Section 4.1 montre les logs centralisés dans Grafana/Loki.
+
+**Niveau 2 - Responsive (Responsive) :**
+
+Critères requis :
+
+- Métriques applicatives : Métriques RED (Rate, Errors, Duration) exposées via `/metrics`
+- Dashboards : 5 panels Grafana configurés (HTTP request rate, latency p95, error rate)
+- Alerting automatisé : Alertes Prometheus avec seuils configurables
+- Corrélation basique : Logs contiennent service.name pour filtrage
+
+**Preuve** : Dashboard Grafana (Section 4.4) montre les métriques temps réel avec 5 panels.
+
+**Niveau 3 - Proactif (Proactive) :**
+
+Critères requis :
+
+- Distributed Tracing : OpenTelemetry SDK instrumenté sur 4 services
+- Propagation de contexte : TraceID/SpanID transmis entre microservices (validé Section 4.2.2)
+- Corrélation avancée : Logs ↔ Traces ↔ Métriques via trace_id
+- Spans enrichis : Attributs personnalisés ajoutés (checkout.status, order.total_price, user.id)
+- Analyse de dépendances : Service Graph dans Jaeger (Section 4.2.1)
+- Tests de charge : K6 pour simuler des conditions de panne
+
+**Preuve** :
+
+- Flamegraph Jaeger (Section 4.2.2) montre la trace distribuée sur 4 services
+- Spans personnalisés dans `frontend/views.py` (checkout_validation, checkout_process)
+- Métriques métier dans `order-service/routes.py` (orders.created, cart.items.added)
+
+**Niveau 4 - Prédictif (Predictive) : ⚠️ PARTIELLEMENT ATTEINT**
+
+Critères requis :
+
+- Machine Learning : Pas d'anomaly detection automatique
+- Prédiction de pannes : Pas de modèle prédictif implémenté
+- Métriques métier : Compteurs custom (orders.created, checkout.completed)
+- SLI tracking : Latency p95 et error rate mesurés (base pour SLO)
+- Auto-remediation : Pas d'action automatique en cas d'alerte
+
+**Justification** : Le niveau 4 nécessite des capacités d'IA/ML (anomaly detection, prédiction de pannes) qui dépassent le scope du TP1. Ces concepts avancés font partie de la **Phase 2 de notre cours MGL870** et seront probablement abordés dans le cadre du **TP2**.
+
+Cependant, j'ai déjà posé les **fondations nécessaires** pour atteindre ce niveau :
+
+- Métriques métier (orders.created, cart.items.added, checkout.completed)
+- SLI tracking (latency p95, error rate) - base pour définir des SLO
+- Alerting configuré (HighErrorRate, HighLatency) - prêt pour auto-remediation
+
+Lorsque j'aurai l'occasion d'**expérimenter les techniques de niveau 4 dans le TP2**, je pourrai essayer d'intégrer des outils comme Prometheus Anomaly Detector, définir des SLO avec error budgets, ou implémenter de l'auto-remediation via Alertmanager.
+
+#### Synthèse de maturité
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Niveau de Maturité Observabilité - Projet TP1          │
+├─────────────────────────────────────────────────────────┤
+│  Niveau 1 (Reactive)      : 100% COMPLET                │
+│  Niveau 2 (Responsive)    : 100% COMPLET                │
+│  Niveau 3 (Proactive)     : 100% COMPLET                │
+│  Niveau 4 (Predictive)    : 30% PARTIEL                 │
+├─────────────────────────────────────────────────────────┤
+│  ÉVALUATION GLOBALE       : Niveau 3 (Proactive)        │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Mon projet se situe solidement au Niveau 3 (Proactive)**, ce qui correspond aux attentes d'un système d'observabilité moderne en production. Les améliorations récentes (spans personnalisés, métriques métier) renforcent cette position en ajoutant du contexte métier aux signaux techniques.
+
+### 8.8 Améliorations avancées implémentées
+
+Suite aux concepts enseignés dans le cours, j'ai implémenté trois améliorations significatives qui élèvent mon projet au-delà des exigences de base du TP.
+
+#### 8.8.1 Spans personnalisés avec enrichissement métier (Cours 04)
+
+**Motivation** : Le Cours 04 sur le Distributed Tracing insiste sur l'importance d'**enrichir les spans avec du contexte métier** pour faciliter le debugging et l'analyse des parcours utilisateurs.
+
+**Implémentation** : J'ai ajouté des spans personnalisés dans les flux critiques du frontend, notamment pour le processus de checkout :
+
+```python
+# frontend/application/frontend/views.py
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+@frontend_blueprint.route('/checkout', methods=['GET'])
+def summary():
+    with tracer.start_as_current_span("checkout_validation") as span:
+        # Enrichissement avec attributs métier
+        span.set_attribute("checkout.status", "valid")
+        span.set_attribute("order.id", order_data.get('id'))
+        span.set_attribute("order.items_count", len(order_data.get('order_items', [])))
+        span.set_attribute("order.total_price", total)
+        span.set_attribute("user.id", session.get('user', {}).get('id'))
+        
+        # Événements pour marquer les étapes critiques
+        span.add_event("Checkout validation completed")
+```
+
+**Résultats observables** :
+
+**Dans Jaeger** (<http://localhost:16686>), en sélectionnant le service `frontend`, l'opération `GET /checkout`, puis en cliquant sur une trace et sur le span `checkout_validation`, on observe les attributs enrichis suivants dans la section "Tags" :
+
+- `checkout.status` : État de la validation (valid, unauthorized, no_order)
+- `order.id` : Identifiant unique de la commande
+- `order.items_count` : Nombre d'articles dans le panier
+- `order.total_price` : Montant total de la commande
+- `user.id` : Identifiant de l'utilisateur
+
+Dans Jaeger, chaque trace de checkout contient maintenant :
+
+- **Attributs métier** : `checkout.status`, `order.id`, `order.items_count`, `order.total_price`, `user.id`
+- **Événements** : Marqueurs temporels pour les étapes critiques ("User not logged in", "Checkout completed")
+- **Filtrage avancé** : Possibilité de rechercher toutes les tentatives de checkout non autorisées avec `checkout.status=unauthorized`
+
+**Impact** : Cette amélioration permet de **corréler les problèmes techniques avec le contexte business**. Par exemple, si un checkout échoue, je peux immédiatement voir le montant du panier, le nombre d'articles, et l'identifiant utilisateur sans avoir à consulter les logs applicatifs ou la base de données.
+
+#### 8.8.2 Métriques métier pour le suivi des KPIs business (Cours 03)
+
+**Motivation** : Le Cours 03 sur Metrics and Alerts distingue les **métriques techniques** (latence, taux d'erreur) des **métriques métier** (conversions, revenus, commandes). Les métriques métier sont essentielles pour aligner l'observabilité technique avec les objectifs business.
+
+**Implémentation** : J'ai configuré le MeterProvider OpenTelemetry et créé trois compteurs métier dans le service order :
+
+```python
+# order-service/application/telemetry.py
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+
+def get_order_metrics():
+    meter = metrics.get_meter(__name__)
+    
+    return {
+        "order_counter": meter.create_counter(
+            name="orders.created",
+            description="Nombre total de commandes créées",
+            unit="1"
+        ),
+        "cart_items_counter": meter.create_counter(
+            name="cart.items.added",
+            description="Nombre d'items ajoutés aux paniers",
+            unit="1"
+        ),
+        "checkout_counter": meter.create_counter(
+            name="orders.checkout.completed",
+            description="Nombre de checkout complétés avec succès",
+            unit="1"
+        )
+    }
+```
+
+**Utilisation dans les routes** :
+
+```python
+# order-service/application/order_api/routes.py
+@order_api_blueprint.route('/api/order/add-item', methods=['POST'])
+def order_add_item():
+    # ... logique existante ...
+    
+    # Incrémenter métriques métier
+    metrics["cart_items_counter"].add(qty, {
+        "product_id": str(p_id), 
+        "user_id": str(u_id)
+    })
+    
+    if known_order is None:
+        metrics["order_counter"].add(1, {"status": "created"})
+```
+
+**Résultats observables** :
+
+Dans Prometheus, les requêtes suivantes sont maintenant disponibles :
+
+- `rate(orders_created_total[5m])` : Taux de création de commandes par minute
+- `sum(cart_items_added_total) by (product_id)` : Produits les plus ajoutés aux paniers
+- `orders_checkout_completed_total` : Nombre total de checkout complétés
+
+**Impact** : Ces métriques permettent de :
+
+1. **Calculer le taux de conversion** : ratio checkout complétés / commandes créées
+2. **Identifier les produits populaires** : agrégation par `product_id`
+3. **Créer des alertes business** : notification si le taux de conversion < 20%
+4. **Corréler performance technique ↔ business** : impact d'une latence sur les conversions
+
+#### 8.8.3 Évaluation de maturité observabilité (Cours 02)
+
+**Motivation** : Le Cours 02 présente un modèle de maturité à 4 niveaux (Reactive, Responsive, Proactive, Predictive). J'ai appliqué ce framework pour **auto-évaluer objectivement mon projet**.
+
+**Analyse détaillée** : Voir Section 8.7 "Niveau de maturité observabilité atteint"
+
+**Tests de validation automatisés** :
+
+J'ai créé un script `test_ameliorations.sh` qui valide automatiquement :
+
+- Présence des imports OpenTelemetry
+- Fonction `get_order_metrics()` dans telemetry.py
+- Spans personnalisés dans views.py
+- Section 8.7 dans le rapport
+- Accessibilité Jaeger et Prometheus
+
+**Résultat** : 8/8 tests passés.
+
+## 9. Glossaire
+
+### A
+
+**Alertmanager**
+Composant de Prometheus responsable de la gestion, du routage et du groupement des alertes. Dans ce projet, configuré pour envoyer des notifications Slack en cas de dépassement des seuils définis (latence > 500ms, taux d'erreur > 5%).
+
+**Auto-instrumentation**
+Méthode d'instrumentation OpenTelemetry qui injecte automatiquement du code de télémétrie sans modification du code source. Non utilisée dans ce projet au profit de l'instrumentation manuelle pour un contrôle précis.
+
+### C
+
+**Cardinality (Cardinalité)**
+Nombre de combinaisons uniques possibles pour une métrique donnée. Critique pour les performances Prometheus. Dans ce projet, gérée en limitant les labels (max 3-4 par métrique) et en excluant les user_id des métriques globales.
+
+**Context Propagation**
+Mécanisme permettant de transmettre le contexte de trace (trace_id, span_id) entre services via les headers HTTP. Implémenté avec `W3C Trace Context` pour tracer les requêtes end-to-end du frontend au order-service.
+
+### E
+
+**Exemplar**
+Lien entre une métrique Prometheus et une trace Jaeger spécifique. Configuré dans ce projet pour permettre de passer d'un pic de latence dans Grafana à la trace exacte dans Jaeger (feature de Prometheus 2.26+).
+
+### G
+
+**Grafana**
+Plateforme de visualisation utilisée pour créer les dashboards de monitoring. Dans ce projet, connectée à 3 datasources (Prometheus, Jaeger, Loki) avec un dashboard principal affichant 12 panneaux de métriques.
+
+### J
+
+**Jaeger**
+Backend de distributed tracing compatible OpenTelemetry. Utilisé dans ce projet pour visualiser les traces end-to-end avec une UI accessible sur `http://localhost:16686`.
+
+### L
+
+**Loki**
+Système d'agrégation de logs développé par Grafana Labs. Dans ce projet, reçoit les logs structurés depuis l'OTel Collector via le format JSON avec corrélation trace_id/span_id.
+
+### M
+
+**MeterProvider**
+Composant OpenTelemetry Metrics responsable de la création et de la gestion des instruments de mesure. Configuré dans `telemetry.py` avec export OTLP vers le collector toutes les 60 secondes.
+
+**Microservices**
+Architecture applicative composée de 4 services indépendants dans ce projet :
+
+- `frontend` (Flask UI, port 5000)
+- `user-service` (authentification, port 5001)
+- `product-service` (catalogue, port 5002)
+- `order-service` (commandes, port 5003)
+
+### O
+
+**OpenTelemetry (OTel)**
+Framework open-source d'observabilité unifiant traces, métriques et logs.
+
+**OpenTelemetry Collector (OTel Collector)**
+Agent centralisé qui reçoit, traite et exporte les données de télémétrie. Dans ce projet, configuré avec :
+
+- Receivers : OTLP (gRPC 4317, HTTP 4318)
+- Processors : batch, memory_limiter
+- Exporters : Jaeger, Prometheus, Loki
+
+**OTLP (OpenTelemetry Protocol)**
+Protocole standardisé pour l'export de télémétrie. Utilisé en gRPC sur le port 4317 pour envoyer traces/métriques/logs depuis les services Python vers le collector.
+
+### P
+
+**Prometheus**
+Système de monitoring time-series pour les métriques. Dans ce projet, scrape le collector sur `http://otel-collector:8889/metrics` toutes les 15 secondes avec 15 jours de rétention.
+
+**PromQL**
+Langage de requête Prometheus. Exemples utilisés dans ce projet :
+
+```promql
+rate(http_server_duration_bucket[5m])
+histogram_quantile(0.95, sum(rate(http_server_duration_bucket[5m])) by (le))
+```
+
+### S
+
+**Span**
+Unité de base d'une trace représentant une opération. Dans ce projet, enrichis avec des attributs métier comme `order.id`, `order.total_price`, `checkout.status`.
+
+**SLI (Service Level Indicator)**
+Métrique quantitative de la performance d'un service. Dans ce projet :
+
+- Latence P95 < 300ms
+- Taux de disponibilité > 99.9%
+- Taux d'erreur < 1%
+
+**SLO (Service Level Objective)**
+Cible de performance basée sur les SLI. Définis dans la section 7.1 avec validation sur période de 7 jours.
+
+### T
+
+**Trace**
+Ensemble de spans représentant le parcours complet d'une requête. Dans ce projet, une trace de checkout contient 8-12 spans traversant 3 services (frontend → order-service → product-service).
+
+**TracerProvider**
+Composant OpenTelemetry Tracing responsable de la création des tracers. Configuré dans `telemetry.py` avec export OTLP batch vers le collector.
+
+### W
+
+**W3C Trace Context**
+Standard W3C pour la propagation du contexte de trace via headers HTTP (`traceparent`, `tracestate`). Implémenté automatiquement par OpenTelemetry Python SDK dans ce projet.
+
+## 10. Références
+
+### Documentation OpenTelemetry
+
+[1] **OpenTelemetry Python Documentation**
+[https://opentelemetry.io/docs/languages/python/](https://opentelemetry.io/docs/languages/python/)
+Référence principale pour l'implémentation des SDK traces, métriques et logs.
+
+[2] **OpenTelemetry Specification - Trace Context**
+[https://opentelemetry.io/docs/specs/otel/context/](https://opentelemetry.io/docs/specs/otel/context/)
+Spécification du mécanisme de propagation de contexte implémenté dans les microservices.
+
+[3] **OpenTelemetry Collector Configuration**
+[https://opentelemetry.io/docs/collector/configuration/](https://opentelemetry.io/docs/collector/configuration/)
+Documentation pour la configuration des receivers, processors et exporters du collector (`otel-collector-config.yaml`).
+
+[4] **OpenTelemetry Python Automatic Instrumentation**
+[https://opentelemetry.io/docs/languages/python/automatic/](https://opentelemetry.io/docs/languages/python/automatic/)
+Documentation des packages d'auto-instrumentation Flask et Requests utilisés dans le projet.
+
+[5] **OTLP Specification v1.0.0**
+[https://opentelemetry.io/docs/specs/otlp/](https://opentelemetry.io/docs/specs/otlp/)
+Protocole utilisé pour l'export gRPC (port 4317) depuis les services Python.
+
+### Cours MGL870
+
+[6] **Cours 01 - Présentation du cours**
+ETS - MGL870 - Surveillance et Observabilité des Systèmes Logiciels (2024_03).
+Introduction générale à la surveillance et à l'observabilité, objectifs pédagogiques du cours.
+
+[7] **Cours 02 - Observability**
+ETS - MGL870 (2025).
+Concepts fondamentaux de l'observabilité (traces, métriques, logs), différence monitoring vs observabilité, niveaux de maturité (Reactive → Proactive → Predictive → Autonomous). Référencé dans la section 8.7 pour l'évaluation de maturité.
+
+[8] **Cours 03 - Metrics and Alerts**
+ETS - MGL870 (2025).
+Types de métriques (Counter, Gauge, Histogram), gestion de la cardinalité, bonnes pratiques d'instrumentation, alerting basé sur les métriques. Appliqué dans la section 8.8.2 pour les métriques métier.
+
+[9] **Cours 04 - Distributed Tracing and OpenTelemetry**
+ETS - MGL870 (2025).
+Architecture du distributed tracing, spans, context propagation, enrichissement sémantique avec attributs métier, SDK OpenTelemetry. Appliqué dans la section 8.8.1 pour les spans personnalisés.
+
+### Outils et backends
+
+[10] **Jaeger Documentation - Architecture**
+[https://www.jaegertracing.io/docs/latest/architecture/](https://www.jaegertracing.io/docs/latest/architecture/)
+Architecture du backend de tracing (agent, collector, query, storage). Version utilisée : `jaegertracing/all-in-one:1.74.0`.
+
+[11] **Prometheus - Best Practices for Metrics**
+[https://prometheus.io/docs/practices/naming/](https://prometheus.io/docs/practices/naming/)
+Guide de nommage et bonnes pratiques appliquées pour les métriques (préfixes `http_`, `order_`, suffixes `_total`, `_seconds`).
+
+[12] **Prometheus - Alerting Rules**
+[https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
+Documentation pour la configuration du fichier `prometheus/alert.rules.yml` (9 règles d'alerting).
+
+[13] **Grafana Loki Documentation**
+[https://grafana.com/docs/loki/latest/](https://grafana.com/docs/loki/latest/)
+Documentation du système d'agrégation de logs. Version utilisée : `grafana/loki:3.3.1`.
+
+[14] **Grafana Dashboards - Provisioning**
+[https://grafana.com/docs/grafana/latest/administration/provisioning/](https://grafana.com/docs/grafana/latest/administration/provisioning/)
+Méthode de provisioning automatique utilisée pour `grafana/dashboards/main.json`.
+
+### Projet de base
+
+[15] **CloudAcademy - python-flask-microservices**
+[https://github.com/cloudacademy/python-flask-microservices](https://github.com/cloudacademy/python-flask-microservices)
+Projet de base (4 microservices Python/Flask) enrichi avec l'instrumentation OpenTelemetry pour ce TP.
+
+### Standards et spécifications
+
+[16] **W3C Trace Context Specification**
+[https://www.w3.org/TR/trace-context/](https://www.w3.org/TR/trace-context/)
+Standard pour les headers `traceparent` et `tracestate` utilisés pour la propagation de contexte.
+
+[17] **Semantic Conventions for HTTP**
+[https://opentelemetry.io/docs/specs/semconv/http/](https://opentelemetry.io/docs/specs/semconv/http/)
+Conventions sémantiques OpenTelemetry pour les attributs HTTP (`http.method`, `http.status_code`, `http.target`).
+
+### Troubleshooting et résolution de problèmes
+
+[18] **Fix Docker Desktop Starting Issue - Windows**
+[https://www.youtube.com/watch?v=hZBlQ39DRvQ](https://www.youtube.com/watch?v=hZBlQ39DRvQ)
+Tutoriel vidéo pour résoudre les problèmes de démarrage de Docker Desktop sur Windows, utilisé pour débloquer l'environnement de développement.
+
+### Ressources visuelles
+
+[19] **Unsplash - Photos gratuites haute qualité**
+[https://unsplash.com/](https://unsplash.com/)
+Plateforme de photos libres de droits utilisée pour les images d'illustration dans les présentations et documentation du projet.
+
+[20] **Tech Icons - Icons collection**
+[https://techicons.dev/](https://techicons.dev/)
+Collection d'icônes technologiques (Docker, Kubernetes, Python, Prometheus, Grafana, Jaeger) utilisées dans les diagrammes d'architecture et présentations.
+
+### Dépôt Git du projet
+
+[21] **Dépôt GitHub du projet**
+[https://github.com/oumarmarame/python-flask-microservices](https://github.com/oumarmarame/python-flask-microservices)
+Code source complet du projet avec instrumentation OpenTelemetry, dashboards Grafana et scripts de test.

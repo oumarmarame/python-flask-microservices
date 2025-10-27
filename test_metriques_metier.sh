@@ -1,0 +1,32 @@
+#!/bin/bash
+echo "��� Test des Métriques Métier (Business Metrics)"
+echo "================================================"
+echo ""
+echo "��� Étape 1 : Vérification des métriques existantes..."
+echo ""
+
+# Attendre que Prometheus soit prêt
+sleep 2
+
+echo "✅ Prêt !"
+echo ""
+echo "��� MAINTENANT, SUIS CES ÉTAPES :"
+echo ""
+echo "1️⃣  Ouvre ton navigateur : http://localhost:9090"
+echo ""
+echo "2️⃣  Dans la barre de recherche (grise), tape exactement :"
+echo "    orders_created"
+echo ""
+echo "3️⃣  Clique sur le bouton bleu 'Execute'"
+echo ""
+echo "4️⃣  Tu verras un tableau avec :"
+echo "    - Metric: orders_created_total"
+echo "    - Value: Un nombre (peut-être 0 pour l'instant)"
+echo ""
+echo "5️⃣  Teste aussi ces métriques :"
+echo "    - cart_items_added"
+echo "    - orders_checkout_completed"
+echo ""
+echo "��� NOTE : Si tu vois ces métriques = AMÉLIORATION VALIDÉE !"
+echo "          (Elles n'existaient pas avant !)"
+echo ""

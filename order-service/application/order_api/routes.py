@@ -5,6 +5,10 @@ from .. import db
 from ..models import Order, OrderItem
 from .api.UserClient import UserClient
 from .api.ProductClient import ProductClient
+from ..telemetry import get_order_metrics
+
+# Initialiser les métriques métier
+metrics = get_order_metrics()
 
 
 @order_api_blueprint.route('/api/orders', methods=['GET'])
@@ -39,6 +43,9 @@ def order_add_item():
 
         order_item = OrderItem(p_id, qty)
         known_order.items.append(order_item)
+        
+        # Métrique : nouvelle commande créée
+        metrics["order_counter"].add(1, {"user_id": str(u_id), "status": "created"})
     else:
         found = False
 
@@ -50,6 +57,9 @@ def order_add_item():
         if found is False:
             order_item = OrderItem(p_id, qty)
             known_order.items.append(order_item)
+
+    # Métrique : item ajouté au panier
+    metrics["cart_items_counter"].add(qty, {"product_id": str(p_id), "user_id": str(u_id)})
 
     db.session.add(known_order)
     db.session.commit()
@@ -112,12 +122,27 @@ def checkout():
     user = response['result']
 
     order_model = Order.query.filter_by(user_id=user['id'], is_open=1).first()
-    order_model.is_open = 0
+    
+    if order_model:
+        order_model.is_open = 0
+        
+        # Calculer le nombre total d'items dans la commande
+        total_items = sum(item.quantity for item in order_model.items)
+        
+        # Métrique : checkout complété
+        metrics["checkout_counter"].add(1, {
+            "user_id": str(user['id']),
+            "order_id": str(order_model.id),
+            "items_count": str(total_items)
+        })
+        
+        db.session.add(order_model)
+        db.session.commit()
 
-    db.session.add(order_model)
-    db.session.commit()
-
-    response = jsonify({'result': order_model.to_json()})
+        response = jsonify({'result': order_model.to_json()})
+    else:
+        response = make_response(jsonify({'message': 'No order found'}), 404)
+        
     return response
 
 

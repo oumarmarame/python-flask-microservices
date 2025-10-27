@@ -1,6 +1,19 @@
 #!/bin/bash
-# Script de test : Simulation de latence réseau
-# Objectif TP: Observer l'impact de la latence dans les traces distribuées
+#
+# Script de test simulant une latence élevée pour valider les alertes de performance.
+# Ce test introduit des délais artificiels dans les réponses des services et observe
+# l'impact dans les traces Jaeger (spans lents) et les alertes Prometheus (p95 > 500ms).
+#
+# @author: Oumar Marame Ndione
+# Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+# Code Permanent: Private
+#
+# Cours: MGL870 - Automne 2025
+# Enseignant: Fabio Petrillo
+# Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+# École de technologie supérieure (ÉTS)
+# @version: 2025-10-26
+#
 
 set -e
 

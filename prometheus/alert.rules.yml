@@ -1,3 +1,20 @@
+#
+# Règles d'alerting Prometheus (HighErrorRate, HighLatency).
+# Définit 2 alertes basées sur les métriques OpenTelemetry :
+# - HighErrorRate: Taux d'erreur 5xx > 5% pendant 1 minute (CRITICAL)
+# - HighLatency: Latence p95 > 500ms pendant 1 minute (WARNING)
+#
+# @author: Oumar Marame Ndione
+# Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+# Code Permanent: Private
+#
+# Cours: MGL870 - Automne 2025
+# Enseignant: Fabio Petrillo
+# Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+# École de technologie supérieure (ÉTS)
+# @version: 2025-10-26
+#
+
 groups:
 - name: service_alerts
   rules:

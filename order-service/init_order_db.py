@@ -1,7 +1,19 @@
 #!/usr/bin/env python
-"""Script que j'ai créé pour initialiser les tables de la base order-service.
-   Ce fichier n'existait pas dans le projet original - je l'ai ajouté pour résoudre
-   le problème des tables manquantes après un rebuild Docker."""
+"""
+Script d'initialisation de la base de données Order.
+Ce fichier n'existait pas dans le projet original - il a été ajouté pour résoudre
+le problème des tables manquantes après un rebuild Docker.
+
+@author: Oumar Marame Ndione
+Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+Code Permanent: Private
+
+Cours: MGL870 - Automne 2025
+Enseignant: Fabio Petrillo
+Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+École de technologie supérieure (ÉTS)
+@version: 2025-10-26
+"""
 
 from application import create_app, db
 from application.models import Order, OrderItem

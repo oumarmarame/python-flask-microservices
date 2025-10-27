@@ -1,7 +1,18 @@
-# otel-collector-config.yaml
-# Configuration du collecteur OpenTelemetry (version contrib) que j'ai mise en place.
-# Ce fichier définit mon pipeline de traitement des données de télémétrie :
-# comment les recevoir (receivers), les traiter (processors) et où les envoyer (exporters).
+#
+# Configuration du collecteur OpenTelemetry (pipelines traces/metrics/logs).
+# Ce fichier définit les receivers, processors et exporters pour le traitement
+# centralisé de toutes les données télémétriques du système.
+#
+# @author: Oumar Marame Ndione
+# Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+# Code Permanent: Private
+#
+# Cours: MGL870 - Automne 2025
+# Enseignant: Fabio Petrillo
+# Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+# École de technologie supérieure (ÉTS)
+# @version: 2025-10-26
+#
 
 # 1. RECEIVERS : Comment les données entrent dans mon collecteur
 receivers:

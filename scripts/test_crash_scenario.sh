@@ -1,6 +1,19 @@
 #!/bin/bash
-# Script de test : Simulation de crash d'un service
-# Objectif TP: Observer la résilience et les traces d'erreur dans Jaeger/Prometheus
+#
+# Script de test simulant le crash d'un service pour valider la détection d'erreurs.
+# Ce test arrête brutalement le product-service et observe les traces d'erreur
+# dans Jaeger et les alertes Prometheus pour valider la résilience du système.
+#
+# @author: Oumar Marame Ndione
+# Courriel: oumar-marame.ndione.1@ens.etsmtl.ca
+# Code Permanent: Private
+#
+# Cours: MGL870 - Automne 2025
+# Enseignant: Fabio Petrillo
+# Projet 1: Mise en Œuvre d'un Pipeline de Journalisation, Traçage et Métriques avec OpenTelemetry
+# École de technologie supérieure (ÉTS)
+# @version: 2025-10-26
+#
 
 set -e
 
