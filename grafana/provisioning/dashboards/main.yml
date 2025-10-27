@@ -1,0 +1,19 @@
+# grafana/provisioning/dashboards/main.yml
+# Ce fichier indique à Grafana de scanner un répertoire pour y trouver
+# des définitions de tableaux de bord au format JSON et de les créer
+# automatiquement au démarrage.
+
+apiVersion: 1
+
+providers:
+  # Un "provider" de type 'file' qui scanne un dossier.
+  - name: 'default'
+    orgId: 1
+    folder: '' # Le dossier racine dans l'UI de Grafana
+    type: file
+    disableDeletion: false # Permet de supprimer les dashboards de l'UI
+    editable: true # Permet de modifier les dashboards depuis l'UI
+    options:
+      # Chemin à l'intérieur du conteneur Grafana où se trouvent les fichiers JSON.
+      # Nous monterons notre dossier local `grafana/dashboards` à cet emplacement.
+      path: /var/lib/grafana/dashboards

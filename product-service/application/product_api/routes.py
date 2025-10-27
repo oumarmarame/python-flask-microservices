@@ -43,3 +43,13 @@ def product(slug):
     else:
         response = jsonify({'message': 'Cannot find product'}), 404
     return response
+
+
+@product_api_blueprint.route('/api/product/<int:product_id>', methods=['GET'])
+def product_by_id(product_id):
+    item = Product.query.filter_by(id=product_id).first()
+    if item is not None:
+        response = jsonify({'result': item.to_json()})
+    else:
+        response = jsonify({'message': 'Cannot find product'}), 404
+    return response

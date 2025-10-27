@@ -1,0 +1,220 @@
+# docker-compose.yml (COMPLET AVEC VERSIONS PINÉES)
+
+services:
+  # --- Services d'Observabilité ---
+  otel-collector:
+    build:
+      context: .
+      dockerfile: otel-collector.Dockerfile
+    container_name: otel-collector
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8889:8889" # Prometheus metrics endpoint
+    networks:
+      - observability-net
+    depends_on:
+      - jaeger
+      - loki
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.74.0 # Version stable Jaeger v1
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "14250:14250" # Jaeger Collector gRPC  
+    networks:
+      - observability-net
+
+  loki:
+    image: grafana/loki:3.5.7 # Version stable Loki
+    container_name: loki
+    ports:
+      - "3100:3100" # Loki API
+    volumes:
+      - loki-data:/loki
+    networks:
+      - observability-net
+
+  prometheus:
+    image: prom/prometheus:v3.7.2 # Version stable Prometheus
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-lifecycle' # Permet le rechargement à chaud de la config
+    ports:
+      - "9090:9090" # Prometheus UI & API
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
+      - prometheus-data:/prometheus
+    networks:
+      - observability-net
+    depends_on:
+      - otel-collector
+
+  grafana:
+    image: grafana/grafana:12.2.1 # Version stable Grafana
+    container_name: grafana
+    ports:
+      - "3000:3000" # Grafana UI
+    volumes:
+      - grafana-data:/var/lib/grafana
+      # Provisioning des sources de données et du tableau de bord
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/var/lib/grafana/dashboards # Monte le JSON du dashboard
+    networks:
+      - observability-net
+    depends_on:
+      - prometheus
+      - loki
+
+  # --- Bases de Données ---
+  user_dbase:
+    image: mysql:8.0
+    container_name: user_dbase
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: user
+      MYSQL_USER: oumarmarame
+      MYSQL_PASSWORD: mgl870
+    volumes:
+      - userdb_vol:/var/lib/mysql
+    ports:
+      - "32000:3306"
+    networks:
+      default:
+        aliases:
+          - user-db
+
+  product_dbase:
+    image: mysql:8.0
+    container_name: product_dbase
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: product
+      MYSQL_USER: oumarmarame
+      MYSQL_PASSWORD: mgl870
+    volumes:
+      - productdb_vol:/var/lib/mysql
+    ports:
+      - "32001:3306"
+    networks:
+      default:
+        aliases:
+          - product-db
+
+  order_dbase:
+    image: mysql:8.0
+    container_name: order_dbase
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: order
+      MYSQL_USER: oumarmarame
+      MYSQL_PASSWORD: mgl870
+    volumes:
+      - orderdb_vol:/var/lib/mysql
+    ports:
+      - "32002:3306"
+    networks:
+      default:
+        aliases:
+          - order-db
+
+  # --- Services Applicatifs ---
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "5000:5000"
+    environment:
+      - ORDER_SERVICE_URL=http://order-service:5000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+    volumes:
+      - ./frontend:/app
+    networks:
+      - default
+      - observability-net
+    depends_on:
+      - order-service
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "5001:5000"
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - DATABASE_URL=mysql+pymysql://oumarmarame:mgl870@user_dbase/user
+      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://oumarmarame:mgl870@user_dbase/user
+    volumes:
+      - ./user-service:/app
+    networks:
+      - default
+      - observability-net
+    depends_on:
+      - user_dbase
+    env_file:
+      - ./user-service/.env
+
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    ports:
+      - "5002:5000"
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - DATABASE_URL=mysql+pymysql://oumarmarame:mgl870@product_dbase/product
+      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://oumarmarame:mgl870@product_dbase/product
+    volumes:
+      - ./product-service:/app
+    networks:
+      - default
+      - observability-net
+    depends_on:
+      - product_dbase
+    env_file:
+      - ./product-service/.env
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "5003:5000"
+    environment:
+      - USER_SERVICE_URL=http://user-service:5000
+      - PRODUCT_SERVICE_URL=http://product-service:5000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - DATABASE_URL=mysql+pymysql://oumarmarame:mgl870@order_dbase/order
+      - SQLALCHEMY_DATABASE_URI=mysql+pymysql://oumarmarame:mgl870@order_dbase/order
+    volumes:
+      - ./order-service:/app
+    networks:
+      - default
+      - observability-net
+    depends_on:
+      - user-service
+      - product-service
+      - otel-collector # Assure que le collector est prêt
+      - order_dbase
+    env_file:
+      - ./order-service/.env
+
+# Déclaration des réseaux
+networks:
+  observability-net: # Réseau pour les composants d'observabilité
+    driver: bridge
+  default: # Réseau par défaut pour les microservices applicatifs
+    driver: bridge
+
+# Déclaration des volumes pour la persistance des données
+volumes:
+  grafana-data:
+  prometheus-data:
+  loki-data:
+  userdb_vol:
+  productdb_vol:
+  orderdb_vol:

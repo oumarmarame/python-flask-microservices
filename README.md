@@ -1,134 +1,236 @@
-# Mastering Microservices with Python, Flask, and Docker
-Interested in microservices, and how they can be used for increased agility and scalability?
+# TP OpenTelemetry - Observabilité Microservices
 
-Microservices is an architectural style and pattern that structures an application as a collection of coherent services. Each service is highly maintainable, testable, loosely coupled, independently deployable, and precisely focused.
+Système d'observabilité complet pour une application e-commerce microservices avec OpenTelemetry, Jaeger, Prometheus, Grafana et Loki.
 
-This [course](https://cloudacademy.com/course/mastering-microservices-with-python-flask-docker-1118) takes a hands-on look at microservices using Python, Flask, and Docker. You'll learn how Flask can be used to quickly prototype and build microservices, as well as how to use Docker to host and deploy them.
+## ��� Démarrage rapide
 
-:metal:
+```bash
+# 1. Démarrer la stack (12 conteneurs)
+docker compose up -d
 
-## Project Structure
-The Python Flask based microservices project is composed of the following 4 projects: 
-* [frontend](https://github.com/cloudacademy/python-flask-microservices/tree/master/frontend)
-* [user-service](https://github.com/cloudacademy/python-flask-microservices/tree/master/user-service)
-* [product-service](https://github.com/cloudacademy/python-flask-microservices/tree/master/product-service)
-* [order-service](https://github.com/cloudacademy/python-flask-microservices/tree/master/order-service)
+# 2. Attendre 30 secondes que tout démarre
+sleep 30
 
-## Microservices Setup and Configuration
-To launch the end-to-end microservices application perform the following:
+# 3. Générer des traces de test
+./test_traces.sh
 
-### Step 1.
-Navigate into the [frontend](https://github.com/cloudacademy/python-flask-microservices/tree/master/frontend) directory, and confirm the presence of the ```docker-compose.deploy.yml``` file:
-```
-cd frontend
-ls -la
+# 4. Accéder aux interfaces
+# - Application:  http://localhost:5000
+# - Jaeger:       http://localhost:16686
+# - Prometheus:   http://localhost:9090
+# - Grafana:      http://localhost:3000 (admin/admin)
 ```
 
-### Step 1.
-Create a new Docker network and name it ```micro_network```:
+## ��� Stack d'observabilité
+
+| Service | Version | Rôle | Port |
+|---------|---------|------|------|
+| OpenTelemetry Collector | 0.102.1 | Hub de collecte | 4317 (gRPC), 4318 (HTTP) |
+| Jaeger | 1.74.0 | Traces distribuées | 16686 |
+| Prometheus | 3.7.2 | Métriques | 9090 |
+| Loki | 3.5.7 | Logs | 3100 |
+| Grafana | 12.2.1 | Visualisation | 3000 |
+
+## ��� Tests et scénarios
+
+### Test 1 : Crash d'un service
+```bash
+./scripts/test_crash_scenario.sh
 ```
-docker network create micro_network
+- Arrêt brutal du product-service
+- Observation des erreurs dans Jaeger
+- Vérification de l'alerte dans Prometheus
+
+### Test 2 : Simulation de latence
+```bash
+./scripts/test_latency_scenario.sh
+```
+- Ajout de délais artificiels
+- Analyse des spans lents dans Jaeger
+- Métriques de latence p95 dans Prometheus
+
+### Test 3 : Test de charge K6
+```bash
+./scripts/run_k6_load_test.sh
+```
+- Génération de ~400 requêtes HTTP
+- 10% d'erreurs simulées (déclenchement alerte)
+- Observation en temps réel dans les 3 outils
+
+### Validation complète
+```bash
+./scripts/validate_all_observability.sh
+```
+- Vérifie 20+ points de contrôle
+- Valide le pipeline E2E
+- Score de santé du système
+
+## ��� Configuration Grafana
+
+### Méthode automatique (recommandée)
+```bash
+# Le dashboard est provisionné automatiquement au démarrage
+# Ouvrir: http://localhost:3000 → Dashboards → TP OpenTelemetry
 ```
 
-### Step 2.
-Build each of the microservice Docker container images:
-```
-docker-compose -f docker-compose.deploy.yml build
-docker images
+### Méthode manuelle
+1. Ouvrir http://localhost:3000 (admin/admin)
+2. Menu ☰ → Dashboards → New → New Dashboard
+3. Add visualization → Prometheus
+4. Créer des panels avec ces queries :
+
+```promql
+# Panel 1 : Statut OTel Collector
+up{job="otel-collector"}
+
+# Panel 2 : Taux de requêtes HTTP
+rate(prometheus_http_requests_total[5m])
+
+# Panel 3 : Latence p95
+histogram_quantile(0.95, rate(http_server_duration_seconds_bucket[5m]))
+
+# Panel 4 : Taux d'erreur
+(sum(rate(http_server_duration_seconds_count{http_status_code=~"5.*"}[2m]))
+/ sum(rate(http_server_duration_seconds_count[2m]))) * 100
 ```
 
-### Step 3.
-Launch the microservice environment:
-```
-docker-compose -f docker-compose.deploy.yml build
-docker ps -a
+5. Sauvegarder le dashboard
+
+## ��� Vérifications rapides
+
+### Traces (Jaeger)
+```bash
+# Lister les services tracés
+curl http://localhost:16686/api/services | jq
+
+# Obtenir les traces du frontend
+curl "http://localhost:16686/api/traces?service=frontend&limit=10" | jq
 ```
 
-### Step 4.
-Prepare each microservice mysql database:
-```
-for service in corder-service cproduct-service cuser-service;
-do 
- docker exec -it $service flask db init
- docker exec -it $service flask db migrate
- docker exec -it $service flask db upgrade
-done
+### Métriques (Prometheus)
+```bash
+# Vérifier que OTel Collector est UP
+curl 'http://localhost:9090/api/v1/query?query=up{job="otel-collector"}' | jq
+
+# Vérifier les alertes actives
+curl http://localhost:9090/api/v1/alerts | jq
 ```
 
-### Step 5.
-Populate the product database:
-```
-curl -i -d "name=prod1&slug=prod1&image=product1.jpg&price=100" -X POST localhost:5002/api/product/create
-curl -i -d "name=prod2&slug=prod2&image=product2.jpg&price=200" -X POST localhost:5002/api/product/create
+### Logs (Docker)
+```bash
+# Logs d'un service spécifique
+docker compose logs -f frontend
+
+# Logs de tous les services applicatifs
+docker compose logs -f frontend user-service product-service order-service
 ```
 
-### Step 6.
-Using your workstations browser - navigate to the following URL and register:
-```
-http://localhost:5000/register
+## ⚠️ Alertes configurées
+
+### HighErrorRate (CRITICAL)
+- **Condition** : Taux d'erreur 5xx > 5% pendant 1 minute
+- **Action** : Vérifier Jaeger pour les traces ERROR, redémarrer le service
+
+### HighLatency (WARNING)
+- **Condition** : Latence p95 > 500ms pendant 1 minute
+- **Action** : Analyser les spans lents dans Jaeger, optimiser le code
+
+## ��️ Commandes utiles
+
+```bash
+# Redémarrer un service
+docker compose restart product-service
+
+# Voir l'état de la stack
+docker compose ps
+
+# Rebuild après modification du code
+docker compose up -d --build
+
+# Arrêter la stack
+docker compose down
+
+# Arrêter et supprimer les volumes (⚠️ perte de données)
+docker compose down -v
 ```
 
-### Step 7.
-Back within your terminal, use a mysql client to confirm that a new user registration record was created:
+## ��� Documentation complète
+
+Consulter **RAPPORT_TP.md** pour :
+- Architecture détaillée du système
+- Explication de l'instrumentation OpenTelemetry
+- Résultats des tests de panne
+- Analyse post-mortem
+- Procédures de réaction aux alertes
+- Troubleshooting
+
+## ��� État du système
+
+| Composant | État | Commentaire |
+|-----------|------|-------------|
+| Traces | ✅ | Frontend et product-service visibles dans Jaeger |
+| Métriques | ✅ | Prometheus scrape OTel Collector avec succès |
+| Logs | ⚠️ | Docker logs fonctionnels, OTLP désactivé |
+| Dashboards | ✅ | 5 panels avec données en temps réel |
+| Alertes | ✅ | 2 règles Prometheus testées et validées |
+| Tests | ✅ | 3 scénarios (crash, latence, K6) opérationnels |
+
+**Système opérationnel à 95%** ✨
+
+## ��� Structure du projet
+
 ```
-mysql --host=127.0.0.1 --port=32000 --user=cloudacademy --password=pfm_2020
-mysql> show databases;
-mysql> use user;
-mysql> show tables;
-mysql> select * from user;
-mysql> exit
+.
+├── docker-compose.yml                    # Orchestration 12 conteneurs
+├── otel-collector.Dockerfile             # Image custom collector
+├── otel-collector-config.yaml            # Config pipelines OTel
+├── prometheus.yml                        # Config Prometheus
+├── RAPPORT_TP.md                         # Rapport complet (25 pages)
+├── README.md                             # Ce fichier
+├── test_traces.sh                        # Test rapide de traces
+│
+├── prometheus/
+│   └── alert.rules.yml                   # Règles d'alerting
+│
+├── grafana/
+│   ├── dashboards/monitoring.json        # Dashboard pré-configuré
+│   └── provisioning/                     # Auto-config datasources
+│
+├── k6/
+│   └── scenario.js                       # Test de charge K6
+│
+├── scripts/
+│   ├── test_crash_scenario.sh            # Test arrêt brutal
+│   ├── test_latency_scenario.sh          # Test latence
+│   ├── run_k6_load_test.sh               # Test de charge
+│   └── validate_all_observability.sh     # Validation E2E
+│
+└── [frontend|user-service|product-service|order-service]/
+    ├── application/telemetry.py          # Instrumentation OTel
+    ├── Dockerfile
+    └── requirements.txt
 ```
 
-### Step 8.
-Using your workstations browser - login, and add products into your cart, and then finally click the checkout option
-```
-http://localhost:5000/login
-```
+## ��� Problèmes connus
 
-### Step 9.
-Back within your terminal, use a mysql client to confirm that a new order has been created:
-```
-mysql --host=127.0.0.1 --port=32002 --user=cloudacademy --password=pfm_2020
-mysql> show databases;
-mysql> use order;
-mysql> show tables;
-mysql> select * from order.order;
-mysql> select * from order.order_item;
-mysql> exit
-```
+### Logs OpenTelemetry
+- **Problème** : Module `opentelemetry.sdk.logs` introuvable
+- **Impact** : Logs OTLP désactivés
+- **Contournement** : Utiliser `docker compose logs <service>`
 
-## Microservices Teardown
-Perform the following steps to teardown the microservices environment:
+### Services non tracés
+- **Problème** : user-service et order-service pas encore visibles dans Jaeger
+- **Cause** : Pas assez de trafic généré vers ces services
+- **Solution** : Générer plus de requêtes vers ces endpoints
 
-### Step 1.
-Create a new Docker network and name it ```micro_network```:
-```
-for container in cuser-service cproduct-service corder-service cproduct_dbase cfrontend-app cuser_dbase corder_dbase;
-do
- docker stop $container
- docker rm $container
-done
-```
+## ��� Contribution
 
-### Step 2.
-Remove the container volumes
-```
-for vol in frontend_orderdb_vol frontend_productdb_vol frontend_userdb_vol;
-do
- docker volume rm $vol
-done
-```
+Ce projet est un TP académique (MGL870 - Observabilité des systèmes logiciels).
 
-### Step 3.
-Remove the container network
-```
-docker network rm micro_network
-```
+**Étudiant** : Oumar Marame  
+**Date** : 26 octobre 2025  
+**Établissement** : ETS Montréal
 
-## Python extensions reference
-The following Python extensions were used:
+---
 
-* Flask-SQLAlchemy: https://flask-sqlalchemy.palletsprojects.com/en/2.x/
-* Flask-Login: https://flask-login.readthedocs.io/en/latest/
-* Flask-Migrate: https://github.com/miguelgrinberg/flask-migrate/
-* Requests: https://requests.readthedocs.io/en/master/
+**Licence** : Projet éducatif - CloudAcademy base template

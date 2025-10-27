@@ -1,0 +1,19 @@
+# Fichier de configuration pour le provisioning des sources de données de Grafana.
+# Ce fichier sera monté dans le conteneur Grafana pour configurer automatiquement
+# les connexions à Prometheus et Loki au démarrage.
+
+apiVersion: 1
+
+datasources:
+  # Configuration de la source de données Prometheus
+  - name: Prometheus
+    type: prometheus
+    access: proxy # Accès via le backend de Grafana pour plus de sécurité
+    url: http://prometheus:9090 # URL interne au réseau Docker
+    isDefault: true # Définit Prometheus comme source de données par défaut pour les nouveaux panneaux
+
+  # Configuration de la source de données Loki
+  - name: Loki
+    type: loki
+    access: proxy # Accès via le backend de Grafana
+    url: http://loki:3100 # URL interne au réseau Docker

@@ -1,0 +1,94 @@
+{
+  "dashboard": {
+    "title": "TP OpenTelemetry - Monitoring Stack",
+    "tags": ["opentelemetry", "observability"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "OTel Collector Status",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "up{job=\"otel-collector\"}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}}},
+              {"type": "value", "options": {"1": {"text": "UP", "color": "green"}}}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Scrape Duration (seconds)",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 9, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "scrape_duration_seconds{job=\"otel-collector\"}",
+            "refId": "A",
+            "legendFormat": "Duration"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Samples Scraped",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 9, "x": 15, "y": 0},
+        "targets": [
+          {
+            "expr": "scrape_samples_scraped{job=\"otel-collector\"}",
+            "refId": "A",
+            "legendFormat": "Samples"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Prometheus HTTP Requests Rate",
+        "type": "graph",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 6},
+        "targets": [
+          {
+            "expr": "rate(prometheus_http_requests_total[5m])",
+            "refId": "A",
+            "legendFormat": "{{handler}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Time Series in Prometheus",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 6},
+        "targets": [
+          {
+            "expr": "prometheus_tsdb_head_series",
+            "refId": "A"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 38,
+    "version": 1
+  },
+  "overwrite": true
+}

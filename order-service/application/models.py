@@ -41,6 +41,6 @@ class OrderItem(db.Model):
 
     def to_json(self):
         return {
-            'product': self.product_id,
+            'product_id': self.product_id,
             'quantity': self.quantity
         }

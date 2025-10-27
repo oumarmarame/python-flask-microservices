@@ -115,9 +115,34 @@ def summary():
     if 'order' not in session:
         flash('No order found', 'error')
         return redirect(url_for('frontend.home'))
-    order = OrderClient.get_order()
 
-    if len(order['result']['items']) == 0:
+    order = OrderClient.get_order()
+    
+    # Debug: afficher les données dans les logs
+    import json
+    print(f"[FRONTEND DEBUG] Order received: {json.dumps(order, indent=2)}", flush=True)
+    if order and order.get('result'):
+        print(f"[FRONTEND DEBUG] Order result: {json.dumps(order['result'], indent=2)}", flush=True)
+        print(f"[FRONTEND DEBUG] Items: {order['result'].get('items', [])}", flush=True)
+        print(f"[FRONTEND DEBUG] Items count: {len(order['result'].get('items', []))}", flush=True)
+
+    # Commenté temporairement pour toujours afficher la page
+    # if not order or not order.get('result') or not order['result'].get('items'):
+    #     flash('Your cart is empty.', 'error')
+    #     return redirect(url_for('frontend.home'))
+
+    # Toujours afficher la page même si vide
+    order_data = order.get('result', {}) if order else {}
+    return render_template('checkout/index.html', order=order_data)
+
+
+@frontend_blueprint.route('/checkout/process', methods=['POST'])
+def process_checkout():
+    if 'user' not in session:
+        flash('Please login', 'error')
+        return redirect(url_for('frontend.login'))
+
+    if 'order' not in session:
         flash('No order found', 'error')
         return redirect(url_for('frontend.home'))
 

@@ -4,6 +4,8 @@ import os
 from flask import Flask
 from flask_bootstrap import Bootstrap
 from flask_login import LoginManager
+# Importe notre nouvelle fonction de configuration
+from application.telemetry import configure_telemetry
 
 login_manager = LoginManager()
 bootstrap = Bootstrap()
@@ -16,6 +18,10 @@ def create_app():
 
     environment_configuration = os.environ['CONFIGURATION_SETUP']
     app.config.from_object(environment_configuration)
+
+    # --- DEBUT Instrumentation OpenTelemetry ---
+    configure_telemetry(app, "frontend")
+    # --- FIN Instrumentation OpenTelemetry ---
 
     login_manager.init_app(app)
     login_manager.login_message = "You must be login to access this page."

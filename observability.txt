@@ -1,0 +1,95 @@
+# docker-compose.observability.yml
+# Ce fichier déploie un stack d'observabilité complet pour la journalisation,
+# le traçage et les métriques en utilisant les meilleures pratiques.
+# Chaque service est commenté pour expliquer son rôle.
+
+version: "3.8"
+
+services:
+  # --- OTel Collector ---
+  # Rôle : Point central de collecte pour toutes les données de télémétrie (logs, traces, métriques).
+  # Il reçoit les données des applications, les traite et les exporte vers les backends appropriés (Jaeger, Loki, Prometheus).
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest # Version "contrib" pour un support étendu des exportateurs.
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otelcol-contrib/config.yaml # Montage du fichier de configuration.
+    ports:
+      - "4317:4317" # Port gRPC pour OTLP
+      - "4318:4318" # Port HTTP pour OTLP
+    networks:
+      - observability-net
+    depends_on:
+      - jaeger
+      - loki
+      - prometheus
+
+  # --- Jaeger ---
+  # Rôle : Backend de traçage distribué. Il reçoit les traces de l'OTel Collector
+  # et fournit une interface utilisateur pour visualiser et analyser les flux de requêtes.
+  jaeger:
+    image: jaegertracing/all-in-one:latest # Image tout-en-un simple pour le TP.
+    container_name: jaeger
+    ports:
+      - "16686:16686" # Interface Utilisateur de Jaeger
+      - "14250:14250" # Port pour l'ingestion de traces (gRPC)
+    networks:
+      - observability-net
+
+  # --- Loki ---
+  # Rôle : Système d'agrégation de logs. Il stocke et indexe les logs reçus
+  # de l'OTel Collector, optimisé pour une interrogation rapide avec Grafana.
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100" # Port de l'API de Loki
+    volumes:
+      - loki-data:/loki # Volume pour la persistance des données de logs.
+    networks:
+      - observability-net
+
+  # --- Prometheus ---
+  # Rôle : Base de données de séries temporelles pour les métriques. Il "scrape" (collecte)
+  # les métriques exposées par l'OTel Collector et les stocke pour l'analyse et l'alerte.
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml # Montage du fichier de configuration.
+      - prometheus-data:/prometheus # Volume pour la persistance des métriques.
+    ports:
+      - "9090:9090" # Interface Utilisateur et API de Prometheus
+    networks:
+      - observability-net
+
+  # --- Grafana ---
+  # Rôle : Plateforme de visualisation et de tableau de bord. Elle se connecte à
+  # Prometheus et Loki pour créer des graphiques et des tableaux de bord interactifs.
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000" # Interface Utilisateur de Grafana
+    volumes:
+      - grafana-data:/var/lib/grafana # Volume pour la persistance des tableaux de bord et configurations.
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources # Provisioning automatique des sources de données.
+    networks:
+      - observability-net
+    depends_on:
+      - prometheus
+      - loki
+
+# Définition du réseau personnalisé pour permettre la communication
+# entre les conteneurs via leurs noms de service.
+networks:
+  observability-net:
+    driver: bridge
+
+# Déclaration des volumes nommés pour la persistance des données.
+# Cela garantit que les données ne sont pas perdues lors du redémarrage des conteneurs.
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:

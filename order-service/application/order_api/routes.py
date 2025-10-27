@@ -4,6 +4,7 @@ from . import order_api_blueprint
 from .. import db
 from ..models import Order, OrderItem
 from .api.UserClient import UserClient
+from .api.ProductClient import ProductClient
 
 
 @order_api_blueprint.route('/api/orders', methods=['GET'])
@@ -71,7 +72,31 @@ def order():
     if open_order is None:
         response = jsonify({'message': 'No order found'})
     else:
-        response = jsonify({'result': open_order.to_json()})
+        # Enrichir les items avec les informations des produits
+        order_data = open_order.to_json()
+        enriched_items = []
+        
+        print(f"[DEBUG] Order has {len(order_data['items'])} items", flush=True)
+        
+        for item in order_data['items']:
+            print(f"[DEBUG] Fetching product {item['product_id']}", flush=True)
+            product = ProductClient.get_product(item['product_id'])
+            if product:
+                print(f"[DEBUG] Product found: {product.get('name')}", flush=True)
+                enriched_item = {
+                    'product_id': item['product_id'],
+                    'product_name': product.get('name', 'Unknown'),
+                    'price': product.get('price', 0),
+                    'quantity': item['quantity']
+                }
+                enriched_items.append(enriched_item)
+            else:
+                print(f"[DEBUG] Product {item['product_id']} not found", flush=True)
+        
+        order_data['items'] = enriched_items
+        print(f"[DEBUG] Final enriched items count: {len(enriched_items)}", flush=True)
+        print(f"[DEBUG] Final order_data: {order_data}", flush=True)
+        response = jsonify({'result': order_data})
     return response
 
 

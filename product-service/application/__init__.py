@@ -3,6 +3,8 @@ import config
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+# Importe notre nouvelle fonction de configuration
+from application.telemetry import configure_telemetry
 
 db = SQLAlchemy()
 
@@ -14,6 +16,10 @@ def create_app():
     app.config.from_object(environment_configuration)
 
     db.init_app(app)
+
+    # --- DEBUT Instrumentation OpenTelemetry ---
+    configure_telemetry(app, "product-service")
+    # --- FIN Instrumentation OpenTelemetry ---
 
     with app.app_context():
         from .product_api import product_api_blueprint

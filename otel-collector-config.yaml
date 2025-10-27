@@ -1,0 +1,69 @@
+# otel-collector-config.yml
+# Fichier de configuration pour l'OpenTelemetry Collector (version contrib).
+# Ce fichier définit le pipeline de traitement des données de télémétrie :
+# comment les recevoir (receivers), les traiter (processors) et où les envoyer (exporters).
+
+# 1. Receivers : Comment les données entrent dans le collecteur.
+receivers:
+  # Le récepteur OTLP (OpenTelemetry Protocol) est le format standard.
+  otlp:
+    protocols:
+      # Accepte les données via gRPC sur le port 4317.
+      grpc:
+        endpoint: 0.0.0.0:4317
+      # Accepte les données via HTTP sur le port 4318.
+      http:
+        endpoint: 0.0.0.0:4318
+
+# 2. Processors : Comment les données sont traitées avant l'exportation.
+processors:
+  # Le processeur "batch" regroupe les données (spans, métriques, logs) en lots.
+  # Cela réduit le nombre de requêtes d'exportation et améliore les performances.
+  batch: {}
+
+# Extensions : fonctionnalités additionnelles exposées par le collecteur (par ex. health check)
+extensions:
+  health_check: {}
+
+# 3. Exporters : Où les données sont envoyées.
+exporters:
+  # --- Exportateur pour les TRACES ---
+  # Exporter OTLP vers Jaeger (utilise le receiver OTLP de Jaeger)
+  otlp/jaeger:
+    # Envoie les traces directement au collector Jaeger via gRPC (port 4317)
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # --- Exportateur pour les METRIQUES ---
+  prometheus:
+    # Expose un endpoint sur le port 8889 que Prometheus pourra scraper.
+    endpoint: 0.0.0.0:8889
+
+  # --- Exportateur pour les LOGS ---
+  loki:
+    endpoint: "http://loki:3100/loki/api/v1/push"
+    tls:
+      insecure: true
+
+# 4. Service : Définit les pipelines qui assemblent les récepteurs, processeurs et exportateurs.
+service:
+  extensions: [health_check] # Active un endpoint de santé pour le collecteur.
+  pipelines:
+    # Pipeline pour les TRACES
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger]
+
+    # Pipeline pour les METRIQUES
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
+
+    # Pipeline pour les LOGS
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [loki]

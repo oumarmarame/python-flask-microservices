@@ -8,3 +8,41 @@
     {% endif %}
 {{ counter.a }}
 {% endmacro %}
+
+{% macro render_basket_products(items) %}
+    {% if items and items|length > 0 %}
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Quantity</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set grand_total = namespace(value=0) %}
+                    {% for item in items %}
+                        {% set item_total = item['price'] * item['quantity'] %}
+                        {% set grand_total.value = grand_total.value + item_total %}
+                        <tr>
+                            <td>{{ item['product_name'] }}</td>
+                            <td>${{ "%.2f"|format(item['price']) }}</td>
+                            <td>{{ item['quantity'] }}</td>
+                            <td>${{ "%.2f"|format(item_total) }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr>
+                        <td colspan="3" class="text-right"><strong>Grand Total:</strong></td>
+                        <td><strong>${{ "%.2f"|format(grand_total.value) }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <p>Your cart is empty. Please add some products before checking out.</p>
+        </div>
+    {% endif %}
+{% endmacro %}

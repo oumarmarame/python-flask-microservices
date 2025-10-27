@@ -1,0 +1,31 @@
+groups:
+- name: service_alerts
+  rules:
+  - alert: HighErrorRate
+    # Exigence du TP : "taux d'erreur élevé"
+    # Nous calculons le taux d'erreurs HTTP 5xx sur les 2 dernières minutes.
+    # 'http_server_duration_seconds_count' est une métrique OTel standard
+    expr: |  # <-- J'ai utilisé un 'literal block' pour la lisibilité
+      (
+        sum(rate(http_server_duration_seconds_count{http_status_code=~"5.*"}[2m]))
+      /
+        sum(rate(http_server_duration_seconds_count[2m]))
+      ) > 0.05 # Seuil de 5%
+    for: 1m # L'alerte se déclenche si le seuil est dépassé pendant 1 minute
+    labels:
+      severity: critical
+    annotations:
+      summary: "Taux d'erreur élevé sur le service {{ $labels.service_name }}"
+      description: "Le service {{ $labels.service_name }} a un taux d'erreur 5xx de {{ $value | humanizePercentage }} depuis plus d'1 minute."
+
+  - alert: HighLatency
+    # Exigence du TP : "pics de latence"
+    # Nous vérifions le 95e percentile de la latence (p95)
+    # 'http_server_duration_seconds_bucket' est une métrique OTel standard
+    expr: histogram_quantile(0.95, sum(rate(http_server_duration_seconds_bucket[2m])) by (le, service_name)) > 0.5 # Seuil de 500ms
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Latence élevée (p95) sur le service {{ $labels.service_name }}"
+      description: "Le p95 de la latence pour {{ $labels.service_name }} est au-dessus de 500ms ({{ $value }}s) depuis plus d'1 minute."

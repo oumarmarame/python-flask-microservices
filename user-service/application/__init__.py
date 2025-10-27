@@ -4,6 +4,8 @@ import os
 from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
+# Importe notre nouvelle fonction de configuration
+from application.telemetry import configure_telemetry
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -16,6 +18,11 @@ def create_app():
 
     db.init_app(app)
     login_manager.init_app(app)
+
+    # --- DEBUT Instrumentation OpenTelemetry ---
+    # Applique la configuration d'observabilité à notre instance d'application
+    configure_telemetry(app, "user-service")
+    # --- FIN Instrumentation OpenTelemetry ---
 
     with app.app_context():
         # Register blueprints

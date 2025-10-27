@@ -1,0 +1,14 @@
+# prometheus.yml
+global:
+  scrape_interval: 10s
+
+# --- DEBUT Ajout Règles ---
+# Charge les fichiers de règles d'alerte
+rule_files:
+  - /etc/prometheus/alert.rules.yml
+# --- FIN Ajout Règles ---
+
+scrape_configs:
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']

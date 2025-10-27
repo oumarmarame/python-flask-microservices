@@ -1,8 +1,8 @@
 # Dockerfile
-FROM python:3.7
+FROM python:3.11
 COPY requirements.txt /productapp/requirements.txt
 WORKDIR /productapp
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 COPY . /productapp
 ENTRYPOINT ["python"]
 CMD ["run.py"]
