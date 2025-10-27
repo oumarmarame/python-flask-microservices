@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-# create_default_user.py - Crée un utilisateur par défaut pour tester
+# Script que j'ai modifié pour créer un utilisateur admin par défaut
+# Utilisé lors de l'initialisation de la base de données user-service
 
 from application import create_app, db
 from application.models import User
@@ -8,36 +9,37 @@ def create_default_user():
     app = create_app()
     
     with app.app_context():
-        # Create all tables first
+        # J'ai ajouté cette ligne pour créer les tables si elles n'existent pas encore
+        # Important après un rebuild complet (docker compose down -v)
         db.create_all()
         
-        # Vérifier si l'utilisateur existe déjà
+        # Je vérifie si l'utilisateur admin existe déjà pour éviter les doublons
         existing_user = User.query.filter_by(username='admin').first()
         
         if existing_user:
-            print(f"L'utilisateur 'admin' existe déjà.")
-            print(f"Email: {existing_user.email}")
+            print(f"✓ L'utilisateur 'admin' existe déjà.")
+            print(f"  Email: {existing_user.email}")
             return
         
-        # Créer un nouvel utilisateur
+        # Je crée l'utilisateur admin avec les identifiants que j'ai définis
         user = User(
             username='admin',
             email='admin@example.com',
             first_name='Admin',
             last_name='User',
-            password='admin123',  # Sera hashé par encode_password()
+            password='admin123',  # Sera automatiquement hashé par encode_password()
             is_admin=True
         )
         
-        # Hasher le mot de passe
+        # Je hashe le mot de passe pour la sécurité
         user.encode_password()
         user.encode_api_key()
         
-        # Ajouter à la base de données
+        # J'ajoute l'utilisateur dans la base de données
         db.session.add(user)
         db.session.commit()
         
-        print("✓ Utilisateur par défaut créé avec succès!")
+        print("✅ Utilisateur admin créé avec succès!")
         print("  Username: admin")
         print("  Password: admin123")
         print("  Email: admin@example.com")

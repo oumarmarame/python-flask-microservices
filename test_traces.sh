@@ -6,16 +6,27 @@ echo "  TEST TRACES OPENTELEMETRY"
 echo "============================================"
 echo ""
 
-echo "1. Génération de 10 requêtes vers l'application..."
-for i in {1..10}; do
-    curl -s http://localhost:5000 > /dev/null
-    echo "  - Requête $i envoyée"
-    sleep 0.5
+echo "1. Génération de 100 requêtes vers différents endpoints..."
+echo "   (Homepage, produits, connexion - pour simuler un usage réel)"
+for i in {1..100}; do
+    # Varie les requêtes pour avoir des traces différentes
+    case $((i % 3)) in
+        0) curl -s http://localhost:5000/ > /dev/null ;;           # Homepage
+        1) curl -s http://localhost:5000/login > /dev/null ;;       # Page login
+        2) curl -s http://localhost:5000/register > /dev/null ;;    # Page register
+    esac
+    
+    # Affiche la progression tous les 10 requêtes pour ne pas spam le terminal
+    if [ $((i % 10)) -eq 0 ]; then
+        echo "  - $i/100 requêtes envoyées..."
+    fi
+    
+    sleep 0.1  # 100ms entre chaque requête = ~10 requêtes/sec (safe)
 done
 
 echo ""
-echo "2. Attente de 15 secondes pour que les traces soient exportées..."
-sleep 15
+echo "2. Attente de 20 secondes pour que les traces soient exportées..."
+sleep 20
 
 echo ""
 echo "3. Vérification des traces dans Jaeger..."

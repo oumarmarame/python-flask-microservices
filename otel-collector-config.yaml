@@ -1,69 +1,72 @@
-# otel-collector-config.yml
-# Fichier de configuration pour l'OpenTelemetry Collector (version contrib).
-# Ce fichier définit le pipeline de traitement des données de télémétrie :
+# otel-collector-config.yaml
+# Configuration du collecteur OpenTelemetry (version contrib) que j'ai mise en place.
+# Ce fichier définit mon pipeline de traitement des données de télémétrie :
 # comment les recevoir (receivers), les traiter (processors) et où les envoyer (exporters).
 
-# 1. Receivers : Comment les données entrent dans le collecteur.
+# 1. RECEIVERS : Comment les données entrent dans mon collecteur
 receivers:
-  # Le récepteur OTLP (OpenTelemetry Protocol) est le format standard.
+  # J'utilise le récepteur OTLP (OpenTelemetry Protocol) qui est le format standard
   otlp:
     protocols:
-      # Accepte les données via gRPC sur le port 4317.
+      # J'accepte les données via gRPC sur le port 4317 (protocole binaire, plus performant)
       grpc:
         endpoint: 0.0.0.0:4317
-      # Accepte les données via HTTP sur le port 4318.
+      # J'accepte aussi les données via HTTP sur le port 4318 (compatible REST)
       http:
         endpoint: 0.0.0.0:4318
 
-# 2. Processors : Comment les données sont traitées avant l'exportation.
+# 2. PROCESSORS : Comment je traite les données avant l'exportation
 processors:
-  # Le processeur "batch" regroupe les données (spans, métriques, logs) en lots.
-  # Cela réduit le nombre de requêtes d'exportation et améliore les performances.
+  # J'utilise le processeur "batch" pour grouper les données (spans, métriques, logs) en lots
+  # Avantage : Réduit le nombre de requêtes d'exportation et améliore les performances
   batch: {}
 
-# Extensions : fonctionnalités additionnelles exposées par le collecteur (par ex. health check)
+# EXTENSIONS : Fonctionnalités additionnelles que j'ai activées
 extensions:
+  # J'expose un endpoint de santé pour surveiller l'état de mon collecteur
   health_check: {}
 
-# 3. Exporters : Où les données sont envoyées.
+# 3. EXPORTERS : Où j'envoie les données collectées
 exporters:
   # --- Exportateur pour les TRACES ---
-  # Exporter OTLP vers Jaeger (utilise le receiver OTLP de Jaeger)
+  # J'envoie les traces directement vers Jaeger via OTLP
   otlp/jaeger:
-    # Envoie les traces directement au collector Jaeger via gRPC (port 4317)
+    # Mon service Jaeger écoute sur le port 4317 (receiver OTLP natif)
     endpoint: jaeger:4317
     tls:
-      insecure: true
+      insecure: true  # Pas de TLS en environnement local
 
   # --- Exportateur pour les METRIQUES ---
+  # J'expose un endpoint Prometheus que Prometheus viendra scraper
   prometheus:
-    # Expose un endpoint sur le port 8889 que Prometheus pourra scraper.
+    # Mon endpoint est accessible sur le port 8889
     endpoint: 0.0.0.0:8889
 
   # --- Exportateur pour les LOGS ---
+  # J'envoie les logs vers Loki pour agrégation
   loki:
     endpoint: "http://loki:3100/loki/api/v1/push"
     tls:
-      insecure: true
+      insecure: true  # Pas de TLS en environnement local
 
-# 4. Service : Définit les pipelines qui assemblent les récepteurs, processeurs et exportateurs.
+# 4. SERVICE : J'assemble mes pipelines (receivers → processors → exporters)
 service:
-  extensions: [health_check] # Active un endpoint de santé pour le collecteur.
+  extensions: [health_check]  # J'active le health check
   pipelines:
-    # Pipeline pour les TRACES
+    # Mon pipeline pour les TRACES
     traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp/jaeger]
+      receivers: [otlp]           # Je reçois les traces en OTLP
+      processors: [batch]         # Je les groupe en lots
+      exporters: [otlp/jaeger]    # Je les envoie à Jaeger
 
-    # Pipeline pour les METRIQUES
+    # Mon pipeline pour les METRIQUES
     metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [prometheus]
+      receivers: [otlp]           # Je reçois les métriques en OTLP
+      processors: [batch]         # Je les groupe en lots
+      exporters: [prometheus]     # Je les expose pour Prometheus
 
-    # Pipeline pour les LOGS
+    # Mon pipeline pour les LOGS
     logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [loki]
+      receivers: [otlp]           # Je reçois les logs en OTLP
+      processors: [batch]         # Je les groupe en lots
+      exporters: [loki]           # Je les envoie à Loki

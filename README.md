@@ -1,112 +1,377 @@
 # TP OpenTelemetry - Observabilité Microservices
 
-En provenance de https://github.com/cloudacademy/python-flask-microservices
+**Projet académique** : Mise en œuvre d'un pipeline complet d'observabilité  
+**Étudiant** : Oumar Marame  
+**Cours** : MGL870 - Observabilité des systèmes logiciels  
+**Établissement** : E.T.S. Montréal
 
-Système d'observabilité complet pour une application e-commerce microservices avec OpenTelemetry, Jaeger, Prometheus, Grafana et Loki.
+---
+
+## 📖 Description du projet
+
+J'ai développé une application e-commerce microservices complète en Python/Flask que j'ai instrumentée avec **OpenTelemetry** pour collecter trois types de signaux télémétriques :
+
+- **Traces** 🔍 : Pour suivre le parcours des requêtes entre mes services
+- **Métriques** 📊 : Pour mesurer les performances et la santé de mon système
+- **Logs** 📝 : Pour capturer les événements applicatifs
+
+Le projet original provient de [CloudAcademy](https://github.com/cloudacademy/python-flask-microservices), mais j'ai apporté de nombreuses modifications :
+- ✅ Centralisation des 4 docker-compose dispersés en un seul fichier
+- ✅ Intégration complète d'OpenTelemetry dans tous les services
+- ✅ Configuration de 5 outils d'observabilité (Jaeger, Prometheus, Grafana, Loki, OTel Collector)
+- ✅ Création de scripts d'automatisation (start.sh, test_traces.sh, validation)
+- ✅ Traduction française complète de l'interface
+- ✅ Tests de charge et scénarios de panne
+
+---
+
+## 🎯 Objectifs réalisés
+
+- [x] Déployer une stack d'observabilité complète (12 conteneurs Docker)
+- [x] Instrumenter les microservices avec OpenTelemetry SDK
+- [x] Valider la collecte et la visualisation des données télémétriques
+- [x] Créer des dashboards Grafana pour le monitoring
+- [x] Tester le système avec des scénarios de panne réalistes
+- [x] Configurer des alertes Prometheus opérationnelles
+
+---
+
+## 📋 Prérequis
+
+Avant de commencer, assurez-vous d'avoir installé :
+
+### Logiciels requis
+
+- **Docker Desktop** : Version 20.10+ ([Télécharger](https://www.docker.com/products/docker-desktop))
+  - Vérification : `docker --version`
+- **Docker Compose** : Version 2.0+ (inclus avec Docker Desktop)
+  - Vérification : `docker compose version`
+- **Git** : Pour cloner le projet
+  - Vérification : `git --version`
+- **Bash** : Pour exécuter les scripts (Git Bash sur Windows)
+
+### Configuration minimale
+
+- **RAM** : 8 GB minimum (12 GB recommandé pour les 12 conteneurs)
+- **Disque** : 10 GB d'espace libre
+- **Ports disponibles** : 3000, 4317, 4318, 5000-5003, 8889, 9090, 16686
+
+### Optionnel (pour les tests de charge)
+
+- **K6** : Outil de test de charge ([Installation](https://k6.io/docs/getting-started/installation/))
+  - Vérification : `k6 version`
+
+---
+
+## 🚀 Installation et configuration
+
+### 1️⃣ Cloner le projet
+
+```bash
+git clone https://github.com/oumarmarame/python-flask-microservices.git
+cd python-flask-microservices
+```
+
+### 2️⃣ Rendre les scripts exécutables
+
+```bash
+# Sur Linux/Mac/Git Bash
+chmod +x start.sh test_traces.sh
+chmod +x scripts/*.sh
+```
+
+### 3️⃣ Lancer le projet
 
 ## Démarrage rapide
 
-### 🚀 Méthode automatique (recommandée)
+### 🚀 Méthode automatique
+
+**J'ai créé un script `start.sh` qui automatise tout le processus** :
 
 ```bash
-# Lancer le script de démarrage complet
 ./start.sh
 ```
 
-Ce script va automatiquement :
-- ✅ Arrêter les conteneurs existants
-- ✅ Reconstruire toutes les images Docker
-- ✅ Démarrer tous les services (12 conteneurs)
-- ✅ Initialiser les bases de données
-- ✅ Créer 10 produits dans le catalogue
-- ✅ Créer l'utilisateur admin (admin/admin123)
-- ✅ Afficher toutes les URLs et informations importantes
+Ce script que j'ai développé va :
+1. ✅ Arrêter les conteneurs existants proprement
+2. ✅ Reconstruire toutes les images Docker (sans cache)
+3. ✅ Démarrer mes 12 conteneurs en arrière-plan
+4. ✅ Attendre 30 secondes que les bases MySQL soient prêtes
+5. ✅ Initialiser automatiquement les 3 bases de données :
+   - **product_dbase** : Création de 10 produits (Laptop Pro, Smartphone X, etc.)
+   - **user_dbase** : Création du compte admin (admin/admin123)
+   - **order_dbase** : Création des tables de commandes
+6. ✅ Afficher toutes les URLs et informations importantes
 
-### 📋 Méthode manuelle
+**Durée totale** : ~2-3 minutes (selon la puissance de votre machine)
+
+### 📋 Méthode manuelle (si vous préférez le contrôle étape par étape)
 
 ```bash
-# 1. Démarrer la stack (12 conteneurs)
+# Étape 1 : Démarrer tous les conteneurs
 docker compose up -d
 
-# 2. Attendre 30 secondes que tout démarre
+# Étape 2 : Attendre que MySQL soit prêt (important !)
 sleep 30
 
-# 3. Initialiser les bases de données
-docker compose exec -T product-service python populate_products.py
-docker compose exec -T user-service python create_default_user.py
-docker compose exec -T order-service python init_order_db.py
+# Étape 3 : Initialiser les bases de données dans l'ordre
+docker compose exec product-service python populate_products.py
+docker compose exec user-service python create_default_user.py
+docker compose exec order-service python init_order_db.py
 
-# 4. Générer des traces de test
+# Étape 4 : Générer des traces de test pour valider le système
 ./test_traces.sh
-
-# 5. Accéder aux interfaces
-# - Application:  http://localhost:5000
-# - Jaeger:       http://localhost:16686
-# - Prometheus:   http://localhost:9090
-# - Grafana:      http://localhost:3000 (admin/admin)
 ```
 
-### 👤 Compte par défaut
-- **Username:** admin
-- **Password:** admin123
+### 🌐 Accès aux interfaces
 
-## Stack d'observabilité
+Une fois le projet démarré, voici où accéder à chaque composant :
 
-| Service | Version | Rôle | Port |
-|---------|---------|------|------|
-| OpenTelemetry Collector | 0.102.1 | Hub de collecte | 4317 (gRPC), 4318 (HTTP) |
-| Jaeger | 1.74.0 | Traces distribuées | 16686 |
-| Prometheus | 3.7.2 | Métriques | 9090 |
-| Loki | 3.5.7 | Logs | 3100 |
-| Grafana | 12.2.1 | Visualisation | 3000 |
+| Interface | URL | Identifiants | Description |
+|-----------|-----|--------------|-------------|
+| **Application E-commerce** | http://localhost:5000 | admin / admin123 | Mon application Flask avec panier et checkout |
+| **Jaeger UI** | http://localhost:16686 | - | Visualisation des traces distribuées |
+| **Prometheus** | http://localhost:9090 | - | Métriques et alertes |
+| **Grafana** | http://localhost:3000 | admin / admin | Dashboards de monitoring |
+| **OpenTelemetry Collector** | http://localhost:8889/metrics | - | Métriques internes du collecteur |
+```
 
-### Architecture visuelle
+### 👤 Compte administrateur par défaut
+
+J'ai configuré un compte admin pour faciliter les tests :
+
+- **Username:** `admin`
+- **Password:** `admin123`
+
+Ce compte est créé automatiquement lors de l'initialisation de la base de données user-service.
+
+---
+
+## 🏗️ Architecture et structure du projet
+
+### Vue d'ensemble de mes services
+
+Mon système est composé de **12 conteneurs Docker** répartis en deux catégories :
+
+#### Services applicatifs (4 conteneurs)
+
+1. **frontend** (port 5000) : Interface utilisateur Flask
+   - 📁 Dossier : `frontend/`
+   - Rôle : Affichage des pages web, gestion du panier, checkout
+   - Communique avec : user-service, product-service, order-service
+
+2. **user-service** (port 5001) : Gestion des utilisateurs
+   - 📁 Dossier : `user-service/`
+   - Rôle : Authentification, profils utilisateurs
+   - Base de données : MySQL `user_dbase`
+
+3. **product-service** (port 5002) : Catalogue de produits
+   - 📁 Dossier : `product-service/`
+   - Rôle : CRUD produits, gestion du catalogue
+   - Base de données : MySQL `product_dbase`
+
+4. **order-service** (port 5003) : Gestion des commandes
+   - 📁 Dossier : `order-service/`
+   - Rôle : Panier, commandes, historique
+   - Base de données : MySQL `order_dbase`
+
+#### Infrastructure d'observabilité (8 conteneurs)
+
+5. **otel-collector** : Hub central de collecte OpenTelemetry
+   - 📁 Configuration : `otel-collector-config.yaml` + `otel-collector.Dockerfile`
+   - Ports : 4317 (gRPC), 4318 (HTTP), 8889 (métriques)
+   - Rôle : Reçoit les données des apps, les traite et les redistribue
+
+6. **jaeger** : Visualisation des traces distribuées
+   - Port : 16686
+   - Rôle : Affiche le parcours des requêtes entre mes services
+
+7. **prometheus** : Stockage et requêtage des métriques
+   - 📁 Configuration : `prometheus.yml` + `prometheus/alert.rules.yml`
+   - Port : 9090
+   - Rôle : Scrape les métriques de otel-collector, déclenche les alertes
+
+8. **loki** : Agrégation des logs
+   - Port : 3100
+   - Rôle : Stocke et indexe les logs de tous les services
+
+9. **grafana** : Dashboards de visualisation
+   - 📁 Configuration : `grafana/dashboards/` + `grafana/provisioning/`
+   - Port : 3000
+   - Rôle : Affiche les métriques et logs dans des graphiques
+
+10-12. **MySQL** (3 instances) : Bases de données
+   - `user_dbase`, `product_dbase`, `order_dbase`
+   - Port interne : 3306 (non exposé à l'hôte)
+
+### Organisation des fichiers importants
+
+```plaintext
+python-flask-microservices/
+│
+├── 📄 docker-compose.yml          # J'ai centralisé TOUTE l'orchestration ici
+├── 📄 start.sh                    # Mon script de démarrage automatisé
+├── 📄 test_traces.sh              # Mon script de test (100 requêtes)
+│
+├── 🔧 Configuration OpenTelemetry
+│   ├── otel-collector-config.yaml     # Pipelines traces/metrics/logs
+│   └── otel-collector.Dockerfile      # Image custom (charge ma config)
+│
+├── 🔧 Configuration Prometheus
+│   ├── prometheus.yml                 # Config scraping
+│   └── prometheus/alert.rules.yml     # Mes 2 alertes (erreurs, latence)
+│
+├── 📊 Dashboards Grafana
+│   ├── grafana/dashboards/monitoring.json
+│   └── grafana/provisioning/          # Auto-config datasources
+│
+├── 🧪 Scripts de test
+│   ├── scripts/test_crash_scenario.sh      # Test arrêt service
+│   ├── scripts/test_latency_scenario.sh    # Test ralentissement
+│   ├── scripts/run_k6_load_test.sh         # Test charge K6
+│   └── scripts/validate_all_observability.sh  # Validation E2E
+│
+├── 🚀 Services applicatifs (structure identique pour chacun)
+│   ├── frontend/
+│   │   ├── application/
+│   │   │   ├── telemetry.py        # J'ai codé l'instrumentation OTel ici
+│   │   │   ├── frontend/views.py   # Routes Flask
+│   │   │   └── templates/          # HTML Jinja2
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   ├── user-service/
+│   │   ├── application/telemetry.py
+│   │   ├── create_default_user.py  # Init DB (admin/admin123)
+│   │   └── ...
+│   │
+│   ├── product-service/
+│   │   ├── application/telemetry.py
+│   │   ├── populate_products.py    # Init DB (10 produits)
+│   │   └── ...
+│   │
+│   └── order-service/
+│       ├── application/telemetry.py
+│       ├── init_order_db.py        # J'ai créé ce fichier (init tables)
+│       └── ...
+│
+├── 📸 Captures d'écran (pour le rapport)
+│   └── img/
+│
+└── 📖 Documentation
+    ├── README.md                      # Ce fichier
+    ├── Rapport_TP_OpenTelemetry.md    # Mon rapport complet du TP
+    ├── CAPTURES_GUIDE.md              # Guide de captures
+    └── PRESENTATION_GUIDE.md          # Guide présentation
+```
+
+---
+
+## 🛠️ Stack d'observabilité
+
+Voici les technologies que j'ai intégrées dans mon système :
+
+| Service | Version | Rôle principal | Port(s) |
+|---------|---------|----------------|---------|
+| OpenTelemetry Collector | 0.102.1 | Hub central : reçoit et redistribue les données | 4317 (gRPC), 4318 (HTTP), 8889 (metrics) |
+| Jaeger | 1.74.0 | Backend de traces distribuées | 16686 (UI) |
+| Prometheus | 3.7.2 | Time-Series Database pour métriques | 9090 (UI + API) |
+| Loki | 3.5.7 | Agrégateur de logs | 3100 (API) |
+| Grafana | 12.2.1 | Visualisation unifiée | 3000 (UI) |
+
+### Architecture visuelle que j'ai conçue
 
 ![Architecture Globale](img/ArchitectureGlobale.png)
 
-## Tests et scénarios
+Le schéma ci-dessus montre comment j'ai organisé mes services : les 4 applications envoient leurs données télémétriques vers le collecteur OpenTelemetry, qui les redistribue ensuite vers Jaeger (traces), Prometheus (métriques) et Loki (logs). Grafana centralise la visualisation.
 
-### Test 1 : Crash d'un service
+---
+
+## 🧪 Tests et validation du système
+
+J'ai créé plusieurs scripts de test pour valider que mon pipeline d'observabilité fonctionne correctement.
+
+### Test 1 : Test de charge basique (test_traces.sh)
+
+Mon script principal pour générer du trafic HTTP :
+
+```bash
+./test_traces.sh
+```
+
+**Ce que fait ce script que j'ai codé :**
+
+- Génère 100 requêtes HTTP vers différents endpoints (/, /login, /register)
+- Rythme : 10 requêtes/seconde
+- Vérifie automatiquement que les traces apparaissent dans Jaeger
+- Affiche la liste des services détectés
+
+**Résultat attendu :** 5 services visibles dans Jaeger
+
+### Test 2 : Crash d'un service
+
 ```bash
 ./scripts/test_crash_scenario.sh
 ```
-- Arrêt brutal du product-service
-- Observation des erreurs dans Jaeger
-- Vérification de l'alerte dans Prometheus
 
-### Test 2 : Simulation de latence
+**Objectif :** Tester la résilience en cas de panne brutale
+
+- Arrête le product-service
+- Les traces d'erreur deviennent visibles dans Jaeger
+- Alerte potentielle dans Prometheus
+
+### Test 3 : Simulation de latence
+
 ```bash
 ./scripts/test_latency_scenario.sh
 ```
-- Ajout de délais artificiels
-- Analyse des spans lents dans Jaeger
-- Métriques de latence p95 dans Prometheus
 
-### Test 3 : Test de charge K6
+**Objectif :** Observer l'impact d'un service lent
+
+- Ajout de délais artificiels dans les réponses
+- Analyse des spans lents dans Jaeger
+- Vérification de la métrique p95 dans Prometheus
+
+### Test 4 : Test de charge K6
+
 ```bash
 ./scripts/run_k6_load_test.sh
 ```
+
+**Prérequis :** K6 doit être installé
+
 - Génération de ~400 requêtes HTTP
-- 10% d'erreurs simulées (déclenchement alerte)
+- 10% d'erreurs simulées pour tester les alertes
 - Observation en temps réel dans les 3 outils
 
 ### Validation complète
+
 ```bash
 ./scripts/validate_all_observability.sh
 ```
-- Vérifie 20+ points de contrôle
-- Valide le pipeline E2E
-- Score de santé du système
 
-## Configuration Grafana
+**Ce que fait ce script :**
 
-### Méthode automatique (recommandée)
-```bash
-# Le dashboard est provisionné automatiquement au démarrage
-# Ouvrir: http://localhost:3000 → Dashboards → TP OpenTelemetry
-```
+- Vérifie que les 12 conteneurs sont UP
+- Valide le pipeline traces → Jaeger
+- Valide que Prometheus scrape correctement
+- Affiche un score de santé global
 
-### Méthode manuelle
+---
+
+## 📊 Configuration de Grafana
+
+### Méthode automatique (provisioning intégré)
+
+J'ai configuré le provisioning automatique, les dashboards sont chargés au démarrage :
+
+1. Ouvrir <http://localhost:3000> (admin/admin)
+2. Menu → Dashboards → TP OpenTelemetry
+3. Le dashboard s'affiche automatiquement
+
+**Note :** Si Prometheus n'apparaît pas, suivez la méthode manuelle.
+
+### Méthode manuelle (si provisioning échoue)
 1. Ouvrir http://localhost:3000 (admin/admin)
 2. Menu → Dashboards → New → New Dashboard
 3. Add visualization → Prometheus
@@ -187,30 +452,38 @@ docker compose down
 docker compose down -v
 ```
 
-## Documentation complète
+---
 
-Consulter **Rapport_TP_OpenTelemetry.md** pour :
-- Architecture détaillée du système
-- Explication de l'instrumentation OpenTelemetry
-- Résultats des tests de panne
-- Analyse post-mortem
-- Procédures de réaction aux alertes
-- Troubleshooting
+## 📚 Documentation complète
 
-## État du système
+Pour plus de détails sur mon travail, consulter **Rapport_TP_OpenTelemetry.md** qui contient :
 
-| Composant | État | Commentaire |
-|-----------|------|-------------|
-| Traces | OK | Frontend et product-service visibles dans Jaeger |
-| Métriques | OK | Prometheus scrape OTel Collector avec succès |
-| Logs | Partiel | Docker logs fonctionnels, OTLP désactivé |
-| Dashboards | OK | 5 panels avec données en temps réel |
-| Alertes | OK | 2 règles Prometheus testées et validées |
-| Tests | OK | 3 scénarios (crash, latence, K6) opérationnels |
+- 📐 Architecture détaillée de mon système (12 conteneurs)
+- 🔧 Explication de mon instrumentation OpenTelemetry
+- 📊 Résultats des tests de panne que j'ai effectués
+- 🔍 Analyse post-mortem des incidents simulés
+- 🚨 Mes procédures de réaction aux alertes Prometheus
+- 🐛 Troubleshooting des problèmes rencontrés (DB init, checkout, Grafana)
+- 📸 Les 9 captures d'écran intégrées avec descriptions
 
-**Système opérationnel à 95%**
+---
 
-## Structure du projet
+## ✅ État du système
+
+| Composant | État | Mon commentaire |
+|-----------|------|-----------------|
+| **Traces** | ✅ OK | Frontend et product-service visibles dans Jaeger avec 100+ traces |
+| **Métriques** | ✅ OK | Prometheus scrape mon OTel Collector toutes les 10s |
+| **Logs** | ⚠️ Partiel | Docker logs fonctionnels, OTLP désactivé (pb dépendance) |
+| **Dashboards** | ✅ OK | Mes 5 panels Grafana avec données temps réel |
+| **Alertes** | ✅ OK | Mes 2 règles Prometheus testées et validées (HighErrorRate, HighLatency) |
+| **Tests** | ✅ OK | Mes 4 scénarios de test opérationnels (traces, crash, latence, K6) |
+
+**Score global de mon système : 95%** (pénalité uniquement sur logs OTLP)
+
+---
+
+## 📂 Organisation des dossiers
 
 ```
 .

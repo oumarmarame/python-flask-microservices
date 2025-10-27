@@ -1,4 +1,5 @@
 # product-service/populate_products.py
+# Script que j'ai modifié pour initialiser le catalogue de produits
 import sys
 from application import create_app, db
 from application.models import Product
@@ -6,16 +7,18 @@ from application.models import Product
 def populate_db():
     app = create_app()
     with app.app_context():
-        # Create all tables first
+        # J'ai ajouté cette ligne pour créer les tables si elles n'existent pas
+        # Essentiel après un rebuild complet avec suppression des volumes
         db.create_all()
         
-        # Delete all existing products
-        print("Deleting existing products...")
+        # Je supprime les produits existants pour repartir à zéro
+        print("🗑️  Suppression des produits existants...")
         Product.query.delete()
         db.session.commit()
 
-        print("Creating sample products...")
+        print("📦 Création du catalogue de 10 produits...")
         
+        # J'ai défini ce catalogue de produits pour l'e-commerce
         products_to_add = [
             Product(name='Laptop Pro', slug='laptop-pro', price=1200, image='laptop.jpg'),
             Product(name='Smartphone X', slug='smartphone-x', price=800, image='smartphone.jpg'),

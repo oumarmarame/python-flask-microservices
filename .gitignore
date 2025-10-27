@@ -1,6 +1,30 @@
-.idea/
-.git/
-__pycache__/
-*.py[cod]
+# Fichiers temporaires/cache Python
+**/__pycache__/
+**/*.pyc
+
+# .idea/
+# .git/
+# __pycache__/
+# *.py[cod]
 *$py.class
 migrations/
+
+# Fichiers de développement
+.vscode/                          # Configuration VS Code (optionnel de garder)
+README.md.old                      # Ancienne version du README
+
+# Scripts de test/debug temporaires
+# download_images.sh                 # Script de téléchargement images
+# generer_trafic.sh                  # Doublon de test_traces.sh
+# ouvrir_pour_captures.sh            # Script temporaire pour captures
+
+# Fichiers de documentation temporaires
+# observability.txt                  # Mon ancien docker-compose pour observabilité
+
+
+# Fichiers dupliqués
+# frontend/templates/checkout/index.html  # Doublon
+# otel-collector-config.yml/         # Dossier vide ou doublon
+
+# Images sources avant que je ne fork le projet
+frontend/application/static/images/produit*.jpg
