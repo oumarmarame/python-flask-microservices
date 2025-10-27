@@ -1,5 +1,5 @@
 {% extends "base_col_1.html" %}
-{% block title %}Home Page{% endblock %}
+{% block title %}Boutique Tech{% endblock %}
 
 {% block pageContent %}
 
@@ -12,7 +12,7 @@
 <div class="col-md-4">
     <div class="panel panel-default">
         <div class="panel-heading">
-            <h2 class="panel-title">{{ product.name }}</h2>
+            <h2 class="panel-title"><i class="fas fa-tag"></i> {{ product.name }}</h2>
         </div>
         <div class="panel-body">
             <div class="img-block">
@@ -21,8 +21,8 @@
         </div>
         <div class="panel-footer">
             <div class="container">
-                <div class="label label-info">Price: {{ product.price }} $</div>
-                <a class="btn btn-success" href="{{ url }}">View more</a>
+                <div class="label label-info"><i class="fas fa-dollar-sign"></i> Prix: {{ product.price }} $</div>
+                <a class="btn btn-primary" href="{{ url }}"><i class="fas fa-eye"></i> Voir détails</a>
             </div>
         </div>
     </div>
@@ -30,7 +30,7 @@
 {% endfor %}
 
     {% else %}
-        <strong>No products found.</strong>
+        <strong><i class="fas fa-exclamation-circle"></i> Aucun produit trouvé.</strong>
     {% endif %}
 
 

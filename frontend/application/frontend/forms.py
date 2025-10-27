@@ -6,25 +6,25 @@ from wtforms.validators import DataRequired, Email
 
 
 class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    submit = SubmitField('Login')
+    username = StringField('Nom d\'utilisateur', validators=[DataRequired()])
+    password = PasswordField('Mot de passe', validators=[DataRequired()])
+    submit = SubmitField('Se connecter')
 
 
 class RegistrationForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    first_name = StringField('First name', validators=[DataRequired()])
-    last_name = StringField('Last name', validators=[DataRequired()])
-    email = StringField('Email address', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    submit = SubmitField('Register')
+    username = StringField('Nom d\'utilisateur', validators=[DataRequired()])
+    first_name = StringField('Prénom', validators=[DataRequired()])
+    last_name = StringField('Nom', validators=[DataRequired()])
+    email = StringField('Adresse e-mail', validators=[DataRequired(), Email()])
+    password = PasswordField('Mot de passe', validators=[DataRequired()])
+    submit = SubmitField('S\'inscrire')
 
 
 class OrderItemForm(FlaskForm):
     product_id = HiddenField(validators=[DataRequired()])
     quantity = IntegerField(validators=[DataRequired()])
     order_id = HiddenField()
-    submit = SubmitField('Update')
+    submit = SubmitField('Mettre à jour')
 
 
 class ItemForm(FlaskForm):

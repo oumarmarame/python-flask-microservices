@@ -1,4 +1,3 @@
-{{ session['order'] | pprint }}
 {% macro count_items()%}
 {% set counter = namespace(a=0) %}
     {% if session['order'] %}
@@ -15,10 +14,11 @@
             <table class="table table-bordered">
                 <thead>
                     <tr>
-                        <th>Product</th>
-                        <th>Price</th>
-                        <th>Quantity</th>
+                        <th>Produit</th>
+                        <th>Prix</th>
+                        <th>Quantité</th>
                         <th>Total</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -31,10 +31,17 @@
                             <td>${{ "%.2f"|format(item['price']) }}</td>
                             <td>{{ item['quantity'] }}</td>
                             <td>${{ "%.2f"|format(item_total) }}</td>
+                            <td>
+                                <form action="{{ url_for('frontend.remove_from_cart', product_id=item['product_id']) }}" method="post" style="display:inline;">
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Retirer du panier">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
                         </tr>
                     {% endfor %}
                     <tr>
-                        <td colspan="3" class="text-right"><strong>Grand Total:</strong></td>
+                        <td colspan="4" class="text-right"><strong>Total général :</strong></td>
                         <td><strong>${{ "%.2f"|format(grand_total.value) }}</strong></td>
                     </tr>
                 </tbody>
@@ -42,7 +49,7 @@
         </div>
     {% else %}
         <div class="alert alert-info">
-            <p>Your cart is empty. Please add some products before checking out.</p>
+            <i class="fas fa-shopping-cart"></i> Votre panier est vide. Veuillez ajouter des produits avant de passer commande.
         </div>
     {% endif %}
 {% endmacro %}

@@ -1,6 +1,6 @@
 {% extends "base_col_1.html" %}
 {% from "macros/_macros_form.html" import render_field %}
-{% block title %}Product page{% endblock %}
+{% block title %}Page Produit{% endblock %}
 
 {% block pageContent %}
 
@@ -9,7 +9,7 @@
     <div class="col-md-12">
         <div class="panel panel-default">
             <div class="panel-heading">
-                <h2 class="panel-title">{{ product.name }}</h2>
+                <h2 class="panel-title"><i class="fas fa-box"></i> {{ product.name }}</h2>
             </div>
             <div class="panel-body">
                 <div class="img-block">
@@ -18,10 +18,10 @@
             </div>
             <div class="panel-footer">
                 <div class="container">
-                    <div class="label label-default">Price: {{ product.price }}</div>
+                    <div class="label label-default"><i class="fas fa-dollar-sign"></i> Prix: {{ product.price }} $</div>
                     <form method="POST">
                         {{ form.hidden_tag() }}
-                        <button type="submit" class="btn btn-success" id="buy-now">Add To Cart</button>
+                        <button type="submit" class="btn btn-success" id="buy-now"><i class="fas fa-cart-plus"></i> Ajouter au panier</button>
                     </form>
                 </div>
             </div>

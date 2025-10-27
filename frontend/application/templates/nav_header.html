@@ -3,21 +3,21 @@
     <nav class="navbar navbar-default">
         <div class="container">
             <ul class="nav navbar-nav">
-                <li><a href="/">Home</a></li>
+                <li><a href="/"><i class="fas fa-home"></i> Accueil</a></li>
             </ul>
             <ul class="nav navbar-nav pull-right">
                 {% if not session['user'] %}
-                    <li><a href="/login">Login</a></li>
-                    <li><a href="/register">Register</a></li>
+                    <li><a href="/login"><i class="fas fa-sign-in-alt"></i> Connexion</a></li>
+                    <li><a href="/register"><i class="fas fa-user-plus"></i> Inscription</a></li>
                 {% else %}
                     {% if session['role'] is true %}
-                        <li><a href="/admin">Dashboard</a></li>
-                        <li><a href="/logout">Logout</a></li>
+                        <li><a href="/admin"><i class="fas fa-tachometer-alt"></i> Tableau de bord</a></li>
+                        <li><a href="/logout"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
                     {% else %}
-                        <li><a href="/logout">Logout</a></li>
+                        <li><a href="/logout"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
                     {% endif %}
                 {% endif %}
-                <li><a href="/checkout">Checkout <span class="badge">{{ count_items() }}</span></a></li>
+                <li><a href="/checkout"><i class="fas fa-shopping-cart"></i> Panier <span class="badge">{{ count_items() }}</span></a></li>
             </ul>
         </div>
     </nav>

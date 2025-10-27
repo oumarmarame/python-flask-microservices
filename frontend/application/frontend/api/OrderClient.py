@@ -31,6 +31,18 @@ class OrderClient:
             return order
 
     @staticmethod
+    def delete_item_from_cart(product_id):
+        url = f'http://order-service:5000/api/order/remove-item/{product_id}'
+
+        headers = {
+            'Authorization': 'Basic ' + session.get('user_api_key', '')
+        }
+        response = requests.request("DELETE", url=url, headers=headers)
+        if response:
+            order = response.json()
+            return order
+
+    @staticmethod
     def post_checkout():
         url = 'http://order-service:5000/api/order/checkout'
 

@@ -119,3 +119,53 @@ def checkout():
 
     response = jsonify({'result': order_model.to_json()})
     return response
+
+
+@order_api_blueprint.route('/api/order/remove-item/<int:product_id>', methods=['DELETE'])
+def order_remove_item(product_id):
+    api_key = request.headers.get('Authorization')
+    response = UserClient.get_user(api_key)
+
+    if not response:
+        return make_response(jsonify({'message': 'Not logged in'}), 401)
+
+    user = response['result']
+    u_id = int(user['id'])
+
+    known_order = Order.query.filter_by(user_id=u_id, is_open=1).first()
+
+    if known_order is None:
+        return make_response(jsonify({'message': 'No order found'}), 404)
+
+    # Trouver et retirer l'item
+    item_to_remove = None
+    for item in known_order.items:
+        if item.product_id == product_id:
+            item_to_remove = item
+            break
+
+    if item_to_remove:
+        db.session.delete(item_to_remove)
+        db.session.commit()
+        
+        # Enrichir les items restants avec les informations des produits
+        order_data = known_order.to_json()
+        enriched_items = []
+        
+        for item in order_data['items']:
+            product = ProductClient.get_product(item['product_id'])
+            if product:
+                enriched_item = {
+                    'product_id': item['product_id'],
+                    'product_name': product.get('name', 'Unknown'),
+                    'price': product.get('price', 0),
+                    'quantity': item['quantity']
+                }
+                enriched_items.append(enriched_item)
+        
+        order_data['items'] = enriched_items
+        response = jsonify({'result': order_data})
+    else:
+        response = make_response(jsonify({'message': 'Item not found'}), 404)
+
+    return response

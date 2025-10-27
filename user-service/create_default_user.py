@@ -8,6 +8,9 @@ def create_default_user():
     app = create_app()
     
     with app.app_context():
+        # Create all tables first
+        db.create_all()
+        
         # Vérifier si l'utilisateur existe déjà
         existing_user = User.query.filter_by(username='admin').first()
         

@@ -1,8 +1,28 @@
 # TP OpenTelemetry - Observabilité Microservices
 
+En provenance de https://github.com/cloudacademy/python-flask-microservices
+
 Système d'observabilité complet pour une application e-commerce microservices avec OpenTelemetry, Jaeger, Prometheus, Grafana et Loki.
 
-## ��� Démarrage rapide
+## Démarrage rapide
+
+### 🚀 Méthode automatique (recommandée)
+
+```bash
+# Lancer le script de démarrage complet
+./start.sh
+```
+
+Ce script va automatiquement :
+- ✅ Arrêter les conteneurs existants
+- ✅ Reconstruire toutes les images Docker
+- ✅ Démarrer tous les services (12 conteneurs)
+- ✅ Initialiser les bases de données
+- ✅ Créer 10 produits dans le catalogue
+- ✅ Créer l'utilisateur admin (admin/admin123)
+- ✅ Afficher toutes les URLs et informations importantes
+
+### 📋 Méthode manuelle
 
 ```bash
 # 1. Démarrer la stack (12 conteneurs)
@@ -11,17 +31,26 @@ docker compose up -d
 # 2. Attendre 30 secondes que tout démarre
 sleep 30
 
-# 3. Générer des traces de test
+# 3. Initialiser les bases de données
+docker compose exec -T product-service python populate_products.py
+docker compose exec -T user-service python create_default_user.py
+docker compose exec -T order-service python init_order_db.py
+
+# 4. Générer des traces de test
 ./test_traces.sh
 
-# 4. Accéder aux interfaces
+# 5. Accéder aux interfaces
 # - Application:  http://localhost:5000
 # - Jaeger:       http://localhost:16686
 # - Prometheus:   http://localhost:9090
 # - Grafana:      http://localhost:3000 (admin/admin)
 ```
 
-## ��� Stack d'observabilité
+### 👤 Compte par défaut
+- **Username:** admin
+- **Password:** admin123
+
+## Stack d'observabilité
 
 | Service | Version | Rôle | Port |
 |---------|---------|------|------|
@@ -31,7 +60,11 @@ sleep 30
 | Loki | 3.5.7 | Logs | 3100 |
 | Grafana | 12.2.1 | Visualisation | 3000 |
 
-## ��� Tests et scénarios
+### Architecture visuelle
+
+![Architecture Globale](img/ArchitectureGlobale.png)
+
+## Tests et scénarios
 
 ### Test 1 : Crash d'un service
 ```bash
@@ -65,7 +98,7 @@ sleep 30
 - Valide le pipeline E2E
 - Score de santé du système
 
-## ��� Configuration Grafana
+## Configuration Grafana
 
 ### Méthode automatique (recommandée)
 ```bash
@@ -75,7 +108,7 @@ sleep 30
 
 ### Méthode manuelle
 1. Ouvrir http://localhost:3000 (admin/admin)
-2. Menu ☰ → Dashboards → New → New Dashboard
+2. Menu → Dashboards → New → New Dashboard
 3. Add visualization → Prometheus
 4. Créer des panels avec ces queries :
 
@@ -96,7 +129,7 @@ histogram_quantile(0.95, rate(http_server_duration_seconds_bucket[5m]))
 
 5. Sauvegarder le dashboard
 
-## ��� Vérifications rapides
+## Vérifications rapides
 
 ### Traces (Jaeger)
 ```bash
@@ -125,7 +158,7 @@ docker compose logs -f frontend
 docker compose logs -f frontend user-service product-service order-service
 ```
 
-## ⚠️ Alertes configurées
+## Alertes configurées
 
 ### HighErrorRate (CRITICAL)
 - **Condition** : Taux d'erreur 5xx > 5% pendant 1 minute
@@ -135,7 +168,7 @@ docker compose logs -f frontend user-service product-service order-service
 - **Condition** : Latence p95 > 500ms pendant 1 minute
 - **Action** : Analyser les spans lents dans Jaeger, optimiser le code
 
-## ��️ Commandes utiles
+## Commandes utiles
 
 ```bash
 # Redémarrer un service
@@ -150,13 +183,13 @@ docker compose up -d --build
 # Arrêter la stack
 docker compose down
 
-# Arrêter et supprimer les volumes (⚠️ perte de données)
+# Arrêter et supprimer les volumes (perte de données)
 docker compose down -v
 ```
 
-## ��� Documentation complète
+## Documentation complète
 
-Consulter **RAPPORT_TP.md** pour :
+Consulter **Rapport_TP_OpenTelemetry.md** pour :
 - Architecture détaillée du système
 - Explication de l'instrumentation OpenTelemetry
 - Résultats des tests de panne
@@ -164,20 +197,20 @@ Consulter **RAPPORT_TP.md** pour :
 - Procédures de réaction aux alertes
 - Troubleshooting
 
-## ��� État du système
+## État du système
 
 | Composant | État | Commentaire |
 |-----------|------|-------------|
-| Traces | ✅ | Frontend et product-service visibles dans Jaeger |
-| Métriques | ✅ | Prometheus scrape OTel Collector avec succès |
-| Logs | ⚠️ | Docker logs fonctionnels, OTLP désactivé |
-| Dashboards | ✅ | 5 panels avec données en temps réel |
-| Alertes | ✅ | 2 règles Prometheus testées et validées |
-| Tests | ✅ | 3 scénarios (crash, latence, K6) opérationnels |
+| Traces | OK | Frontend et product-service visibles dans Jaeger |
+| Métriques | OK | Prometheus scrape OTel Collector avec succès |
+| Logs | Partiel | Docker logs fonctionnels, OTLP désactivé |
+| Dashboards | OK | 5 panels avec données en temps réel |
+| Alertes | OK | 2 règles Prometheus testées et validées |
+| Tests | OK | 3 scénarios (crash, latence, K6) opérationnels |
 
-**Système opérationnel à 95%** ✨
+**Système opérationnel à 95%**
 
-## ��� Structure du projet
+## Structure du projet
 
 ```
 .
@@ -185,7 +218,7 @@ Consulter **RAPPORT_TP.md** pour :
 ├── otel-collector.Dockerfile             # Image custom collector
 ├── otel-collector-config.yaml            # Config pipelines OTel
 ├── prometheus.yml                        # Config Prometheus
-├── RAPPORT_TP.md                         # Rapport complet (25 pages)
+├── Rapport_TP_OpenTelemetry.md           # Rapport complet du TP
 ├── README.md                             # Ce fichier
 ├── test_traces.sh                        # Test rapide de traces
 │
@@ -211,7 +244,7 @@ Consulter **RAPPORT_TP.md** pour :
     └── requirements.txt
 ```
 
-## ��� Problèmes connus
+## Problèmes connus
 
 ### Logs OpenTelemetry
 - **Problème** : Module `opentelemetry.sdk.logs` introuvable
@@ -223,13 +256,15 @@ Consulter **RAPPORT_TP.md** pour :
 - **Cause** : Pas assez de trafic généré vers ces services
 - **Solution** : Générer plus de requêtes vers ces endpoints
 
-## ��� Contribution
+## Contribution
 
 Ce projet est un TP académique (MGL870 - Observabilité des systèmes logiciels).
 
-**Étudiant** : Oumar Marame  
-**Date** : 26 octobre 2025  
-**Établissement** : ETS Montréal
+**Étudiant** : Oumar Marame Ndione
+
+**Date** : 26 octobre 2025
+
+**Établissement** : E.T.S. Montréal
 
 ---
 

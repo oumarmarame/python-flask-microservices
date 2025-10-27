@@ -2,27 +2,16 @@
 {% from "macros/_macros_form.html" import render_field_with_errors, render_field %}
 {% from "macros/_macros_basket.html" import render_basket_products %}
 
-{% block title %}Checkout Summary{% endblock %}
+{% block title %}Récapitulatif de la commande{% endblock %}
 
-{% block body %}
+{% block pageContent %}
     <div class="col-md-12">
-        <h1>Checkout Summary</h1>
+        <h1><i class="fas fa-shopping-bag"></i> Récapitulatif de la commande</h1>
         <hr>
-        <!-- Debug: afficher les données reçues -->
-        <div style="border: 2px solid red; padding: 10px; background: #ffeeee;">
-            <h3>DEBUG INFO:</h3>
-            <p>Order object: {{ order }}</p>
-            <p>Order type: {{ order.__class__.__name__ }}</p>
-            <p>Order keys: {{ order.keys() if order is mapping else 'Not a dict' }}</p>
-            <p>Items: {{ order['items'] if order and 'items' in order else 'NO ITEMS KEY' }}</p>
-            <p>Items type: {{ order['items'].__class__.__name__ if order and 'items' in order else 'N/A' }}</p>
-            <p>Items count: {{ order['items']|length if order and 'items' in order and order['items'] else 0 }}</p>
-        </div>
-        <hr>
-        {{ render_basket_products(order['items']) }}
+        {{ render_basket_products(order.get('items', [])) }}
         <hr>
         <form action="{{ url_for('frontend.process_checkout') }}" method="post">
-            <button type="submit" class="btn btn-success">Confirm and Pay</button>
+            <button type="submit" class="btn btn-success"><i class="fas fa-credit-card"></i> Confirmer et payer</button>
         </form>
     </div>
 {% endblock %}

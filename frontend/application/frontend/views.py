@@ -6,7 +6,7 @@ from .. import login_manager
 from .api.UserClient import UserClient
 from .api.ProductClient import ProductClient
 from .api.OrderClient import OrderClient
-from flask import render_template, session, redirect, url_for, flash, request
+from flask import render_template, session, redirect, url_for, flash, request, current_app
 
 from flask_login import current_user
 
@@ -42,17 +42,17 @@ def register():
             user = UserClient.does_exist(username)
             if user:
                 # Existing user found
-                flash('Please try another username', 'error')
+                flash('Veuillez essayer un autre nom d\'utilisateur', 'error')
                 return render_template('register/index.html', form=form)
             else:
                 # Attempt to create new user
                 user = UserClient.post_user_create(form)
                 if user:
-                    flash('Thanks for registering, please login', 'success')
+                    flash('Merci pour votre inscription, veuillez vous connecter', 'success')
                     return redirect(url_for('frontend.login'))
 
         else:
-            flash('Errors found', 'error')
+            flash('Erreurs détectées', 'error')
 
     return render_template('register/index.html', form=form)
 
@@ -74,12 +74,12 @@ def login():
                 if order.get('result', False):
                     session['order'] = order['result']
 
-                flash('Welcome back, ' + user['result']['username'], 'success')
+                flash('Bienvenue, ' + user['result']['username'], 'success')
                 return redirect(url_for('frontend.home'))
             else:
-                flash('Cannot login', 'error')
+                flash('Impossible de se connecter', 'error')
         else:
-            flash('Errors found', 'error')
+            flash('Erreurs détectées', 'error')
     return render_template('login/index.html', form=form)
 
 
@@ -98,52 +98,55 @@ def product(slug):
 
     if request.method == "POST":
         if 'user' not in session:
-            flash('Please login', 'error')
+            flash('Veuillez vous connecter', 'error')
             return redirect(url_for('frontend.login'))
         order = OrderClient.post_add_to_cart(product_id=item['id'], qty=1)
         session['order'] = order['result']
-        flash('Order has been updated', 'success')
+        flash('Commande mise à jour', 'success')
     return render_template('product/index.html', product=item, form=form)
 
 
 @frontend_blueprint.route('/checkout', methods=['GET'])
 def summary():
     if 'user' not in session:
-        flash('Please login', 'error')
+        flash('Veuillez vous connecter', 'error')
         return redirect(url_for('frontend.login'))
 
     if 'order' not in session:
-        flash('No order found', 'error')
+        flash('Aucune commande trouvée', 'error')
         return redirect(url_for('frontend.home'))
 
     order = OrderClient.get_order()
-    
-    # Debug: afficher les données dans les logs
-    import json
-    print(f"[FRONTEND DEBUG] Order received: {json.dumps(order, indent=2)}", flush=True)
-    if order and order.get('result'):
-        print(f"[FRONTEND DEBUG] Order result: {json.dumps(order['result'], indent=2)}", flush=True)
-        print(f"[FRONTEND DEBUG] Items: {order['result'].get('items', [])}", flush=True)
-        print(f"[FRONTEND DEBUG] Items count: {len(order['result'].get('items', []))}", flush=True)
-
-    # Commenté temporairement pour toujours afficher la page
-    # if not order or not order.get('result') or not order['result'].get('items'):
-    #     flash('Your cart is empty.', 'error')
-    #     return redirect(url_for('frontend.home'))
-
-    # Toujours afficher la page même si vide
     order_data = order.get('result', {}) if order else {}
+    
     return render_template('checkout/index.html', order=order_data)
+
+
+@frontend_blueprint.route('/cart/remove/<int:product_id>', methods=['POST'])
+def remove_from_cart(product_id):
+    if 'user' not in session:
+        flash('Veuillez vous connecter', 'error')
+        return redirect(url_for('frontend.login'))
+    
+    # Appeler l'API pour retirer le produit
+    order = OrderClient.delete_item_from_cart(product_id=product_id)
+    if order and order.get('result'):
+        session['order'] = order['result']
+        flash('Produit retiré du panier', 'success')
+    else:
+        flash('Erreur lors du retrait du produit', 'error')
+    
+    return redirect(url_for('frontend.summary'))
 
 
 @frontend_blueprint.route('/checkout/process', methods=['POST'])
 def process_checkout():
     if 'user' not in session:
-        flash('Please login', 'error')
+        flash('Veuillez vous connecter', 'error')
         return redirect(url_for('frontend.login'))
 
     if 'order' not in session:
-        flash('No order found', 'error')
+        flash('Aucune commande trouvée', 'error')
         return redirect(url_for('frontend.home'))
 
     OrderClient.post_checkout()
@@ -153,14 +156,14 @@ def process_checkout():
 @frontend_blueprint.route('/order/thank-you', methods=['GET'])
 def thank_you():
     if 'user' not in session:
-        flash('Please login', 'error')
+        flash('Veuillez vous connecter', 'error')
         return redirect(url_for('frontend.login'))
 
     if 'order' not in session:
-        flash('No order found', 'error')
+        flash('Aucune commande trouvée', 'error')
         return redirect(url_for('frontend.home'))
 
     session.pop('order', None)
-    flash('Thank you for your order', 'success')
+    flash('Merci pour votre commande', 'success')
 
     return render_template('order/thankyou.html')
